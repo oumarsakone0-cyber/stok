@@ -141,13 +141,15 @@
                       <input 
                         v-model="formData.nom"
                         type="text"
-                        :style="getInputStyle('nom')"
+                        :style="getInputStyle('nom', fieldErrors.nom)"
                         @focus="focusedInput = 'nom'"
-                        @blur="focusedInput = null"
+                        @blur="validateField('nom', formData.nom, 'Le nom est requis')"
+                        @input="validateField('nom', formData.nom, 'Le nom est requis')"
                         placeholder="Votre nom"
                         required
                       />
                     </div>
+                    <div v-if="fieldErrors.nom" :style="fieldErrorStyle">{{ fieldErrors.nom }}</div>
                   </div>
                   <div :style="formGroupStyle">
                     <label :style="labelStyle">Prénom</label>
@@ -158,36 +160,49 @@
                       <input 
                         v-model="formData.prenom"
                         type="text"
-                        :style="getInputStyle('prenom')"
+                        :style="getInputStyle('prenom', fieldErrors.prenom)"
                         @focus="focusedInput = 'prenom'"
-                        @blur="focusedInput = null"
+                        @blur="validateField('prenom', formData.prenom, 'Le prénom est requis')"
+                        @input="validateField('prenom', formData.prenom, 'Le prénom est requis')"
                         placeholder="Votre prénom"
                         required
                       />
                     </div>
+                    <div v-if="fieldErrors.prenom" :style="fieldErrorStyle">{{ fieldErrors.prenom }}</div>
                   </div>
                 </div>
 
                 <!-- Contact et Email sur une ligne -->
                 <div :style="twoColumnsRowStyle">
-                  <div :style="formGroupStyle">
+                  <div :style="contactGroupStyle">
                     <label :style="labelStyle">Contact</label>
-                    <div :style="inputWrapperStyle">
-                      <svg :style="inputIconStyle" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
-                      </svg>
+                    <div :style="phoneInputWrapperStyle">
+                      <div :style="countrySelectorStyle">
+                        <select 
+                          v-model="selectedCountryCode"
+                          :style="countrySelectStyle"
+                          @change="validateContact('contact')"
+                        >
+                          <option v-for="country in countries" :key="country.code" :value="country.code">
+                            {{ country.flag }} {{ country.code }}
+                          </option>
+                        </select>
+                      </div>
                       <input 
                         v-model="formData.contact"
                         type="tel"
-                        :style="getInputStyle('contact')"
+                        :style="getPhoneInputStyle('contact')"
                         @focus="focusedInput = 'contact'"
-                        @blur="focusedInput = null"
-                        placeholder="+225 XX XX XX XX"
+                        @blur="validateContact('contact')"
+                        @input="handlePhoneInput('contact')"
+                        :placeholder="`${selectedCountryCode} XX XX XX XX`"
                         required
+                        maxlength="15"
                       />
                     </div>
+                    <div v-if="fieldErrors.contact" :style="fieldErrorStyle">{{ fieldErrors.contact }}</div>
                   </div>
-                  <div :style="formGroupStyle">
+                  <div :style="emailGroupStyle">
                     <label :style="labelStyle">Email</label>
                     <div :style="inputWrapperStyle">
                       <svg :style="inputIconStyle" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -196,14 +211,16 @@
                       <input 
                         v-model="formData.email"
                         type="email"
-                        :style="getInputStyle('email')"
+                        :style="getInputStyle('email', fieldErrors.email)"
                         @focus="focusedInput = 'email'"
-                        @blur="focusedInput = null"
+                        @blur="validateEmail"
+                        @input="validateEmail"
                         placeholder="exemple@sogetrag.com"
                         required
                         autocomplete="email"
                       />
                     </div>
+                    <div v-if="fieldErrors.email" :style="fieldErrorStyle">{{ fieldErrors.email }}</div>
                   </div>
                 </div>
 
@@ -251,13 +268,15 @@
                       <input 
                         v-model="formData.nom_admin"
                         type="text"
-                        :style="getInputStyle('nom_admin')"
+                        :style="getInputStyle('nom_admin', fieldErrors.nom_admin)"
                         @focus="focusedInput = 'nom_admin'"
-                        @blur="focusedInput = null"
+                        @blur="validateField('nom_admin', formData.nom_admin, 'Le nom de l\'admin est requis')"
+                        @input="validateField('nom_admin', formData.nom_admin, 'Le nom de l\'admin est requis')"
                         placeholder="Nom de l'admin"
                         required
                       />
                     </div>
+                    <div v-if="fieldErrors.nom_admin" :style="fieldErrorStyle">{{ fieldErrors.nom_admin }}</div>
                   </div>
                   <div :style="formGroupStyle">
                     <label :style="labelStyle">Prénom admin</label>
@@ -268,13 +287,15 @@
                       <input 
                         v-model="formData.prenom_admin"
                         type="text"
-                        :style="getInputStyle('prenom_admin')"
+                        :style="getInputStyle('prenom_admin', fieldErrors.prenom_admin)"
                         @focus="focusedInput = 'prenom_admin'"
-                        @blur="focusedInput = null"
+                        @blur="validateField('prenom_admin', formData.prenom_admin, 'Le prénom de l\'admin est requis')"
+                        @input="validateField('prenom_admin', formData.prenom_admin, 'Le prénom de l\'admin est requis')"
                         placeholder="Prénom de l'admin"
                         required
                       />
                     </div>
+                    <div v-if="fieldErrors.prenom_admin" :style="fieldErrorStyle">{{ fieldErrors.prenom_admin }}</div>
                   </div>
                 </div>
 
@@ -289,36 +310,49 @@
                       <input 
                         v-model="formData.nom_entreprise"
                         type="text"
-                        :style="getInputStyle('nom_entreprise')"
+                        :style="getInputStyle('nom_entreprise', fieldErrors.nom_entreprise)"
                         @focus="focusedInput = 'nom_entreprise'"
-                        @blur="focusedInput = null"
+                        @blur="validateField('nom_entreprise', formData.nom_entreprise, 'Le nom de l\'entreprise est requis')"
+                        @input="validateField('nom_entreprise', formData.nom_entreprise, 'Le nom de l\'entreprise est requis')"
                         placeholder="Nom de votre entreprise"
                         required
                       />
                     </div>
+                    <div v-if="fieldErrors.nom_entreprise" :style="fieldErrorStyle">{{ fieldErrors.nom_entreprise }}</div>
                   </div>
-                  <div :style="formGroupStyle">
+                  <div :style="contactGroupStyle">
                     <label :style="labelStyle">Contact</label>
-                    <div :style="inputWrapperStyle">
-                      <svg :style="inputIconStyle" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
-                      </svg>
+                    <div :style="phoneInputWrapperStyle">
+                      <div :style="countrySelectorStyle">
+                        <select 
+                          v-model="selectedCountryCodeEntreprise"
+                          :style="countrySelectStyle"
+                          @change="validateContact('contact_entreprise')"
+                        >
+                          <option v-for="country in countries" :key="country.code" :value="country.code">
+                            {{ country.flag }} {{ country.code }}
+                          </option>
+                        </select>
+                      </div>
                       <input 
                         v-model="formData.contact_entreprise"
                         type="tel"
-                        :style="getInputStyle('contact_entreprise')"
+                        :style="getPhoneInputStyle('contact_entreprise')"
                         @focus="focusedInput = 'contact_entreprise'"
-                        @blur="focusedInput = null"
-                        placeholder="+225 XX XX XX XX"
+                        @blur="validateContact('contact_entreprise')"
+                        @input="handlePhoneInput('contact_entreprise')"
+                        :placeholder="`${selectedCountryCodeEntreprise} XX XX XX XX`"
                         required
+                        maxlength="15"
                       />
                     </div>
+                    <div v-if="fieldErrors.contact_entreprise" :style="fieldErrorStyle">{{ fieldErrors.contact_entreprise }}</div>
                   </div>
                 </div>
 
                 <!-- Email et Adresse sur une ligne -->
                 <div :style="twoColumnsRowStyle">
-                  <div :style="formGroupStyle">
+                  <div :style="emailGroupStyle">
                     <label :style="labelStyle">Email</label>
                     <div :style="inputWrapperStyle">
                       <svg :style="inputIconStyle" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -327,14 +361,16 @@
                       <input 
                         v-model="formData.email"
                         type="email"
-                        :style="getInputStyle('email')"
+                        :style="getInputStyle('email', fieldErrors.email)"
                         @focus="focusedInput = 'email'"
-                        @blur="focusedInput = null"
+                        @blur="validateEmail"
+                        @input="validateEmail"
                         placeholder="contact@entreprise.com"
                         required
                         autocomplete="email"
                       />
                     </div>
+                    <div v-if="fieldErrors.email" :style="fieldErrorStyle">{{ fieldErrors.email }}</div>
                   </div>
                   <div :style="formGroupStyle">
                     <label :style="labelStyle">Adresse</label>
@@ -346,13 +382,15 @@
                       <input 
                         v-model="formData.adresse_entreprise"
                         type="text"
-                        :style="getInputStyle('adresse_entreprise')"
+                        :style="getInputStyle('adresse_entreprise', fieldErrors.adresse_entreprise)"
                         @focus="focusedInput = 'adresse_entreprise'"
-                        @blur="focusedInput = null"
+                        @blur="validateField('adresse_entreprise', formData.adresse_entreprise, 'L\'adresse est requise')"
+                        @input="validateField('adresse_entreprise', formData.adresse_entreprise, 'L\'adresse est requise')"
                         placeholder="Adresse complète"
                         required
                       />
                     </div>
+                    <div v-if="fieldErrors.adresse_entreprise" :style="fieldErrorStyle">{{ fieldErrors.adresse_entreprise }}</div>
                   </div>
                 </div>
               </template>
@@ -567,6 +605,35 @@ const userType = ref('particulier')
 const currentStep = ref(1)
 const acceptTerms = ref(false)
 const acceptMarketing = ref(false)
+const selectedCountryCode = ref('+225') // Code par défaut pour Côte d'Ivoire (particulier)
+const selectedCountryCodeEntreprise = ref('+225') // Code par défaut pour Côte d'Ivoire (entreprise)
+
+// Liste des pays avec codes téléphoniques
+const countries = [
+  { code: '+225', name: 'CI', flag: '🇨🇮', fullName: 'Côte d\'Ivoire' },
+  { code: '+33', name: 'FR', flag: '🇫🇷', fullName: 'France' },
+  { code: '+221', name: 'SN', flag: '🇸🇳', fullName: 'Sénégal' },
+  { code: '+226', name: 'BF', flag: '🇧🇫', fullName: 'Burkina Faso' },
+  { code: '+223', name: 'ML', flag: '🇲🇱', fullName: 'Mali' },
+  { code: '+229', name: 'BJ', flag: '🇧🇯', fullName: 'Bénin' },
+  { code: '+228', name: 'TG', flag: '🇹🇬', fullName: 'Togo' },
+  { code: '+227', name: 'NE', flag: '🇳🇪', fullName: 'Niger' },
+  { code: '+224', name: 'GN', flag: '🇬🇳', fullName: 'Guinée' },
+  { code: '+212', name: 'MA', flag: '🇲🇦', fullName: 'Maroc' }
+]
+
+// Validations des champs
+const fieldErrors = reactive({
+  nom: '',
+  prenom: '',
+  contact: '',
+  email: '',
+  nom_admin: '',
+  prenom_admin: '',
+  nom_entreprise: '',
+  contact_entreprise: '',
+  adresse_entreprise: ''
+})
 
 const passwordRequirements = reactive({
   uppercase: false,
@@ -650,12 +717,83 @@ const passwordStrengthColor = computed(() => {
   return '#ef4444'
 })
 
+// Fonctions de validation
+const validateField = (fieldName, value, errorMessage) => {
+  if (!value || value.trim() === '') {
+    fieldErrors[fieldName] = errorMessage
+    return false
+  }
+  fieldErrors[fieldName] = ''
+  return true
+}
+
+const validateEmail = () => {
+  const email = formData.email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  
+  if (!email || email.trim() === '') {
+    fieldErrors.email = 'L\'email est requis'
+    return false
+  }
+  
+  if (!emailRegex.test(email)) {
+    fieldErrors.email = 'Veuillez entrer un email valide'
+    return false
+  }
+  
+  fieldErrors.email = ''
+  return true
+}
+
+const validateContact = (fieldName) => {
+  const contact = formData[fieldName]
+  
+  if (!contact || contact.trim() === '') {
+    fieldErrors[fieldName] = 'Le contact est requis'
+    return false
+  }
+  
+  // Vérifier que le contact ne contient que des chiffres
+  const phoneRegex = /^[0-9\s]+$/
+  if (!phoneRegex.test(contact)) {
+    fieldErrors[fieldName] = 'Le contact ne doit contenir que des chiffres'
+    return false
+  }
+  
+  // Vérifier la longueur minimale (au moins 8 chiffres)
+  const digitsOnly = contact.replace(/\s/g, '')
+  if (digitsOnly.length < 8) {
+    fieldErrors[fieldName] = 'Le contact doit contenir au moins 8 chiffres'
+    return false
+  }
+  
+  fieldErrors[fieldName] = ''
+  return true
+}
+
+const handlePhoneInput = (fieldName) => {
+  // Ne garder que les chiffres et espaces
+  const value = formData[fieldName]
+  const cleaned = value.replace(/[^0-9\s]/g, '')
+  formData[fieldName] = cleaned
+}
+
 const isStep1Valid = computed(() => {
   if (userType.value === 'particulier') {
-    return formData.nom && formData.prenom && formData.contact && formData.email && formData.type_activite
+    const hasAllFields = formData.nom && formData.prenom && formData.contact && formData.email && formData.type_activite
+    const hasNoErrors = !fieldErrors.nom && !fieldErrors.prenom && !fieldErrors.contact && !fieldErrors.email
+    const emailValid = formData.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
+    const contactValid = formData.contact && /^[0-9\s]+$/.test(formData.contact) && formData.contact.replace(/\s/g, '').length >= 8
+    return hasAllFields && hasNoErrors && emailValid && contactValid
   } else {
-    return formData.nom_admin && formData.prenom_admin && formData.nom_entreprise && 
-           formData.contact_entreprise && formData.email && formData.adresse_entreprise
+    const hasAllFields = formData.nom_admin && formData.prenom_admin && formData.nom_entreprise && 
+                         formData.contact_entreprise && formData.email && formData.adresse_entreprise
+    const hasNoErrors = !fieldErrors.nom_admin && !fieldErrors.prenom_admin && !fieldErrors.nom_entreprise &&
+                         !fieldErrors.contact_entreprise && !fieldErrors.email && !fieldErrors.adresse_entreprise
+    const emailValid = formData.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
+    const contactValid = formData.contact_entreprise && /^[0-9\s]+$/.test(formData.contact_entreprise) && 
+                         formData.contact_entreprise.replace(/\s/g, '').length >= 8
+    return hasAllFields && hasNoErrors && emailValid && contactValid
   }
 })
 
@@ -706,11 +844,15 @@ const handleRegister = async () => {
   loading.value = true
 
   try {
+    const contactValue = userType.value === 'particulier' ? formData.contact : formData.contact_entreprise
+    const countryCode = userType.value === 'particulier' ? selectedCountryCode.value : selectedCountryCodeEntreprise.value
+    const fullContact = countryCode + ' ' + contactValue.replace(/\s/g, '')
+    
     const payload = {
       user_type: userType.value,
       email: formData.email,
       password: formData.password,
-      contact: userType.value === 'particulier' ? formData.contact : formData.contact_entreprise
+      contact: fullContact
     }
     
     if (userType.value === 'particulier') {
@@ -899,7 +1041,7 @@ const rightSideStyle = {
 
 const formCardStyle = {
   width: '100%',
-  maxWidth: '420px',
+  maxWidth: '480px',
   boxShadow: `
     0 2px 6px rgba(0,0,0,0.08),
     0 12px 24px rgba(0,0,0,0.12),
@@ -909,7 +1051,7 @@ const formCardStyle = {
   background: 'rgba(255,255,255,0.9)',
   backdropFilter: 'blur(20px)',
   borderRadius: '24px',
-  padding: '36px',
+  padding: '40px',
   border: '1px solid rgba(255,255,255,0.25)'
 }
 
@@ -1061,6 +1203,21 @@ const formStyle = {
 }
 
 const formGroupStyle = {
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px'
+}
+
+const contactGroupStyle = {
+  flex: '0 1 45%',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px'
+}
+
+const emailGroupStyle = {
+  flex: '1 1 55%',
   display: 'flex',
   flexDirection: 'column',
   gap: '8px'
@@ -1068,7 +1225,8 @@ const formGroupStyle = {
 
 const twoColumnsRowStyle = {
   display: 'flex',
-  gap: '16px'
+  gap: '16px',
+  width: '100%'
 }
 
 const labelStyle = {
@@ -1093,25 +1251,95 @@ const inputIconStyle = {
   pointerEvents: 'none'
 }
 
-const getInputStyle = (inputName) => ({
-  width: '100%',
-  padding: '14px 16px 14px 44px',
-  border: focusedInput.value === inputName ? '2px solid #10b981' : '2px solid #e2e8f0',
-  borderRadius: '12px',
-  fontSize: '15px',
+const getInputStyle = (inputName, error = '') => {
+  const hasError = error && error !== ''
+  return {
+    width: '100%',
+    padding: '14px 16px 14px 44px',
+    border: hasError ? '2px solid #ef4444' : (focusedInput.value === inputName ? '2px solid #10b981' : '2px solid #e2e8f0'),
+    borderRadius: '12px',
+    fontSize: '15px',
+    fontWeight: '500',
+    color: '#1e293b',
+    transition: 'all 0.2s',
+    outline: 'none',
+    boxSizing: 'border-box',
+    background: focusedInput.value === inputName ? '#f8fafc' : 'white',
+    cursor: inputName === 'type_activite' ? 'pointer' : 'text',
+    appearance: inputName === 'type_activite' ? 'none' : 'auto',
+    backgroundImage: inputName === 'type_activite' ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2310b981\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")' : 'none',
+    backgroundRepeat: inputName === 'type_activite' ? 'no-repeat' : 'repeat',
+    backgroundPosition: inputName === 'type_activite' ? 'right 16px center' : '0 0',
+    paddingRight: inputName === 'type_activite' ? '44px' : '16px'
+  }
+}
+
+const getPhoneInputStyle = (inputName) => {
+  const error = fieldErrors[inputName]
+  const hasError = error && error !== ''
+  return {
+    flex: '0 1 auto',
+    maxWidth: '140px',
+    padding: '14px 16px',
+    border: hasError ? '2px solid #ef4444' : (focusedInput.value === inputName ? '2px solid #10b981' : '2px solid #e2e8f0'),
+    borderLeft: 'none',
+    borderTopLeftRadius: '0',
+    borderBottomLeftRadius: '0',
+    borderTopRightRadius: '12px',
+    borderBottomRightRadius: '12px',
+    fontSize: '15px',
+    fontWeight: '500',
+    color: '#1e293b',
+    transition: 'all 0.2s',
+    outline: 'none',
+    boxSizing: 'border-box',
+    background: focusedInput.value === inputName ? '#f8fafc' : 'white'
+  }
+}
+
+const phoneInputWrapperStyle = {
+  display: 'flex',
+  alignItems: 'stretch',
+  gap: 0,
+  width: '100%'
+}
+
+const countrySelectorStyle = {
+  position: 'relative',
+  display: 'flex',
+  alignItems: 'center'
+}
+
+const countrySelectStyle = {
+  padding: '14px 6px',
+  border: '2px solid #e2e8f0',
+  borderRight: 'none',
+  borderTopLeftRadius: '12px',
+  borderBottomLeftRadius: '12px',
+  borderTopRightRadius: '0',
+  borderBottomRightRadius: '0',
+  fontSize: '12px',
   fontWeight: '500',
   color: '#1e293b',
-  transition: 'all 0.2s',
+  background: 'white',
+  cursor: 'pointer',
   outline: 'none',
-  boxSizing: 'border-box',
-  background: focusedInput.value === inputName ? '#f8fafc' : 'white',
-  cursor: inputName === 'type_activite' ? 'pointer' : 'text',
-  appearance: inputName === 'type_activite' ? 'none' : 'auto',
-  backgroundImage: inputName === 'type_activite' ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2310b981\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")' : 'none',
-  backgroundRepeat: inputName === 'type_activite' ? 'no-repeat' : 'repeat',
-  backgroundPosition: inputName === 'type_activite' ? 'right 16px center' : '0 0',
-  paddingRight: inputName === 'type_activite' ? '44px' : '16px'
-})
+  appearance: 'none',
+  backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'9\' height=\'9\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%2310b981\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 4px center',
+  paddingRight: '20px',
+  width: '65px',
+  flexShrink: 0,
+  transition: 'all 0.2s'
+}
+
+const fieldErrorStyle = {
+  fontSize: '12px',
+  color: '#ef4444',
+  marginTop: '4px',
+  fontWeight: '500'
+}
 
 const passwordWrapperStyle = {
   position: 'relative',
