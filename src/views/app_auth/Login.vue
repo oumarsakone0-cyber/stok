@@ -209,19 +209,24 @@ const formData = reactive({
 
 const features = [
   {
-    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
-    title: 'Invitez vos collègues',
-    description: 'Intégrez des API conviviales ou choisissez une solution prête à l\'emploi.'
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3z"></path><path d="M3 7h18v14H3z"></path></svg>',
+    title: 'Suivi des stocks',
+    description: 'Surveillez vos entrées et sorties en temps réel pour éviter les ruptures.'
   },
   {
-    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>',
-    title: 'Assurez la conformité',
-    description: 'Recevez des informations détaillées en temps réel sur vos statistiques.'
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"></path><path d="M5 5h14v14H5z"></path></svg>',
+    title: 'Alertes automatiques',
+    description: 'Recevez des notifications pour les produits faibles en stock ou périmés.'
   },
   {
-    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
-    title: 'Sécurité intégrée',
-    description: 'Gardez vos membres et clients informés en temps réel.'
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"></path><path d="M9 9h6v6H9z"></path></svg>',
+    title: 'Rapports détaillés',
+    description: 'Analysez vos ventes, achats et tendances pour une gestion efficace.'
+  },
+  {
+    icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>',
+    title: 'Sécurité et permissions',
+    description: 'Contrôlez qui peut accéder, modifier ou valider les stocks dans l’application.'
   }
 ]
 
