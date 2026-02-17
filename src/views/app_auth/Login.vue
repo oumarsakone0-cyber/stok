@@ -193,7 +193,7 @@ import { useAuthStore } from '../../stores/authStore'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const API_BASE_URL = 'https://sogetrag.com/apistok'
+const API_BASE_URL = 'https://www.aliadjame.com/api'
 
 const loading = ref(false)
 const submitHovered = ref(false)
@@ -226,7 +226,7 @@ const features = [
   {
     icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>',
     title: 'Sécurité et permissions',
-    description: 'Contrôlez qui peut accéder, modifier ou valider les stocks dans l’application.'
+    description: "Contrôlez qui peut accéder, modifier ou valider les stocks dans l'application."
   }
 ]
 
@@ -388,10 +388,7 @@ const footerLinkStyle = {
   fontSize: '14px',
   color: 'gray',
   textDecoration: 'none',
-  transition: 'color 0.2s',
-  '&:hover': {
-    color: 'rgba(255, 255, 255, 0.8)'
-  }
+  transition: 'color 0.2s'
 }
 
 const separatorStyle = {
@@ -498,19 +495,7 @@ const dividerStyle = {
   gap: '16px',
   margin: '24px 0',
   fontSize: '13px',
-  color: '#36454F',
-  '&::before': {
-    content: '""',
-    flex: 1,
-    height: '1px',
-    background: 'rgba(255, 255, 255, 0.1)'
-  },
-  '&::after': {
-    content: '""',
-    flex: 1,
-    height: '1px',
-    background: 'rgba(255, 255, 255, 0.1)'
-  }
+  color: '#36454F'
 }
 
 const formStyle = {
@@ -573,10 +558,7 @@ const getPasswordInputStyle = computed(() => ({
   color: '#36454F',
   transition: 'all 0.2s',
   outline: 'none',
-  boxSizing: 'border-box',
-  '&::placeholder': {
-    color: 'rgba(255, 255, 255, 0.4)'
-  }
+  boxSizing: 'border-box'
 }))
 
 const togglePasswordStyle = {
@@ -649,10 +631,7 @@ const linkStyle = {
   color: '#10b981',
   textDecoration: 'none',
   fontWeight: '600',
-  transition: 'color 0.2s',
-  '&:hover': {
-    color: '#059669'
-  }
+  transition: 'color 0.2s'
 }
 </script>
 
@@ -786,5 +765,41 @@ const linkStyle = {
   div[style*="leftSideStyle"] {
     display: none !important;
   }
+}
+
+/* Styles pour les hover et pseudo-éléments */
+a[style*="footerLinkStyle"]:hover {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+button[style*="socialButtonStyle"]:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+div[style*="dividerStyle"]::before {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+div[style*="dividerStyle"]::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+button[style*="togglePasswordStyle"]:hover {
+  color: #3A3A3A !important;
+}
+
+a[style*="linkStyle"]:hover {
+  color: #059669 !important;
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 </style>

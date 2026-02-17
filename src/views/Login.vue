@@ -168,7 +168,7 @@ import { useAuthStore } from '../stores/authStore'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const API_BASE_URL = 'https://sogetrag.com/apistok'
+const API_BASE_URL = 'https://www.aliadjame.com/api'
 
 const loading = ref(false)
 const submitHovered = ref(false)

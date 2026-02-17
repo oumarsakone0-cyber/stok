@@ -592,7 +592,7 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-const API_BASE_URL = 'https://sogetrag.com/apistok'
+const API_BASE_URL = 'https://www.aliadjame.com/api'
 
 const loading = ref(false)
 const submitHovered = ref(false)
@@ -846,28 +846,34 @@ const handleRegister = async () => {
   try {
     const contactValue = userType.value === 'particulier' ? formData.contact : formData.contact_entreprise
     const countryCode = userType.value === 'particulier' ? selectedCountryCode.value : selectedCountryCodeEntreprise.value
-    const fullContact = countryCode + ' ' + contactValue.replace(/\s/g, '')
+    const telephone = countryCode + contactValue.replace(/\s/g, '')
     
+    // Préparer le payload selon le type d'utilisateur
     const payload = {
-      user_type: userType.value,
       email: formData.email,
       password: formData.password,
-      contact: fullContact
+      telephone: telephone,
+      photo: '', // Photo vide pour l'instant
+      role: 1, // Par défaut
+      access: JSON.stringify(['ALL_TEST']), // Convertir en chaîne JSON
+      statut: 'actif' // Statut par défaut
+      // id_entreprise et user_id seront NULL par défaut (gérés côté serveur)
     }
     
     if (userType.value === 'particulier') {
       payload.nom = formData.nom
       payload.prenom = formData.prenom
-      payload.type_activite = formData.type_activite
     } else {
-      payload.nom_admin = formData.nom_admin
-      payload.prenom_admin = formData.prenom_admin
-      payload.nom_entreprise = formData.nom_entreprise
-      payload.adresse_entreprise = formData.adresse_entreprise
-      payload.entreprise = formData.nom_entreprise
+      payload.nom = formData.nom_admin
+      payload.prenom = formData.prenom_admin
+      payload.entreprise = formData.nom_entreprise // Nom de l'entreprise pour création côté serveur
+      // id_entreprise reste 1 par défaut, l'API créera l'entreprise et mettra à jour l'ID si nécessaire
     }
 
-    const response = await fetch(`${API_BASE_URL}/api_auth.php?action=register`, {
+    // Log pour déboguer (à supprimer en production)
+    console.log('Données envoyées à l\'API:', payload)
+
+    const response = await fetch(`${API_BASE_URL}/api_auth.php?action=register2`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -875,7 +881,25 @@ const handleRegister = async () => {
       body: JSON.stringify(payload)
     })
 
-    const data = await response.json()
+    // Vérifier si la réponse est OK
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Erreur API:', response.status, errorText)
+      errorMessage.value = `Erreur serveur (${response.status}): ${errorText || 'Erreur lors de l\'inscription'}`
+      return
+    }
+
+    // Essayer de parser la réponse JSON
+    let data
+    try {
+      const responseText = await response.text()
+      console.log('Réponse API:', responseText)
+      data = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error('Erreur de parsing JSON:', parseError)
+      errorMessage.value = 'Réponse invalide du serveur'
+      return
+    }
 
     if (data.success) {
       successMessage.value = 'Inscription réussie ! Redirection vers la connexion...'
@@ -883,11 +907,11 @@ const handleRegister = async () => {
         router.push('/login')
       }, 2000)
     } else {
-      errorMessage.value = data.error || 'Erreur lors de l\'inscription'
+      errorMessage.value = data.error || data.message || 'Erreur lors de l\'inscription'
     }
   } catch (error) {
     console.error('Erreur d\'inscription:', error)
-    errorMessage.value = 'Impossible de se connecter au serveur'
+    errorMessage.value = `Erreur: ${error.message || 'Impossible de se connecter au serveur'}`
   } finally {
     loading.value = false
   }
