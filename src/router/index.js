@@ -9,6 +9,12 @@ const routes = [
     meta: { requiresAuth: false, public: true }
   },
   {
+    path: "/register",
+    name: "register",
+    component: () => import("../views/app_auth/Register.vue"),
+    meta: { requiresAuth: false, public: true }
+  },
+  {
     path: "/",
     name: "home",
     component: () => import("../views/Home.vue"),
@@ -166,8 +172,8 @@ router.beforeEach((to, from, next) => {
   
   // Pages publiques
   if (to.meta.public) {
-    // Si déjà connecté et va vers login, rediriger vers home
-    if (to.name === 'login' && authStore.isLoggedIn) {
+    // Si déjà connecté et va vers login ou register, rediriger vers home
+    if ((to.name === 'login' || to.name === 'register') && authStore.isLoggedIn) {
       return next({ name: 'home' })
     }
     return next()
