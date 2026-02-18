@@ -164,11 +164,10 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
+import { authLogin } from '../services/api'
 
 const router = useRouter()
 const authStore = useAuthStore()
-
-const API_BASE_URL = 'https://www.aliadjame.com/api'
 
 const loading = ref(false)
 const submitHovered = ref(false)
@@ -191,18 +190,8 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api_auth.php?action=login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email: formData.email,
-        password: formData.password
-      })
-    })
-
-    const data = await response.json()
+    const response = await authLogin(formData.email, formData.password)
+    const data = response.data
 
     if (data.success) {
       // Utiliser le store Pinia pour gérer l'authentification
@@ -226,7 +215,7 @@ const handleLogin = async () => {
     }
   } catch (error) {
     console.error('Erreur de connexion:', error)
-    errorMessage.value = 'Impossible de se connecter au serveur'
+    errorMessage.value = error.response?.data?.error || error.message || 'Impossible de se connecter au serveur'
   } finally {
     loading.value = false
   }

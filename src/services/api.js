@@ -43,4 +43,16 @@ export const apiPost = (url, data, config = {}) => api.post(url, data, config);
 export const apiPut = (url, data, config = {}) => api.put(url, data, config);
 export const apiDelete = (url, config = {}) => api.delete(url, config);
 
+// Base URL de l'API (évite de la mettre en dur dans les vues)
+export const getApiBaseUrl = () => api.defaults.baseURL;
+
+// ——— Authentification (api_auth.php) ———
+/** Connexion : POST api_auth.php?action=login */
+export const authLogin = (email, password) =>
+  api.post('api_auth.php?action=login', { email, password });
+
+/** Inscription : POST api_auth.php?action=register2 */
+export const authRegister = (payload) =>
+  api.post('api_auth.php?action=register2', payload);
+
 export default api;

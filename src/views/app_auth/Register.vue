@@ -589,10 +589,9 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { authRegister } from '../../services/api'
 
 const router = useRouter()
-
-const API_BASE_URL = 'https://www.aliadjame.com/api'
 
 const loading = ref(false)
 const submitHovered = ref(false)
@@ -873,33 +872,8 @@ const handleRegister = async () => {
     // Log pour déboguer (à supprimer en production)
     console.log('Données envoyées à l\'API:', payload)
 
-    const response = await fetch(`${API_BASE_URL}/api_auth.php?action=register2`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    })
-
-    // Vérifier si la réponse est OK
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Erreur API:', response.status, errorText)
-      errorMessage.value = `Erreur serveur (${response.status}): ${errorText || 'Erreur lors de l\'inscription'}`
-      return
-    }
-
-    // Essayer de parser la réponse JSON
-    let data
-    try {
-      const responseText = await response.text()
-      console.log('Réponse API:', responseText)
-      data = JSON.parse(responseText)
-    } catch (parseError) {
-      console.error('Erreur de parsing JSON:', parseError)
-      errorMessage.value = 'Réponse invalide du serveur'
-      return
-    }
+    const response = await authRegister(payload)
+    const data = response.data
 
     if (data.success) {
       successMessage.value = 'Inscription réussie ! Redirection vers la connexion...'
@@ -911,7 +885,9 @@ const handleRegister = async () => {
     }
   } catch (error) {
     console.error('Erreur d\'inscription:', error)
-    errorMessage.value = `Erreur: ${error.message || 'Impossible de se connecter au serveur'}`
+    const errData = error.response?.data
+    const errMsg = errData?.error || errData?.details || error.message || 'Impossible de se connecter au serveur'
+    errorMessage.value = typeof errMsg === 'string' ? errMsg : (errData?.message || 'Erreur lors de l\'inscription')
   } finally {
     loading.value = false
   }
