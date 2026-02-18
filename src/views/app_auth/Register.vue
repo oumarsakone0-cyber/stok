@@ -589,7 +589,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { authRegister } from '../../services/api'
+import { authRegister } from '../../services/api.js'
 
 const router = useRouter()
 

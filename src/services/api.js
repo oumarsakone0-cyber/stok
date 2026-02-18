@@ -46,13 +46,15 @@ export const apiDelete = (url, config = {}) => api.delete(url, config);
 // Base URL de l'API (évite de la mettre en dur dans les vues)
 export const getApiBaseUrl = () => api.defaults.baseURL;
 
-// ——— Authentification (api_auth.php) ———
-/** Connexion : POST api_auth.php?action=login */
-export const authLogin = (email, password) =>
-  api.post('api_auth.php?action=login', { email, password });
+// Authentification (api_auth.php)
+// Connexion : POST api_auth.php?action=login
+export const authLogin = (email, password) => {
+  return api.post('api_auth.php?action=login', { email, password });
+};
 
-/** Inscription : POST api_auth.php?action=register2 */
-export const authRegister = (payload) =>
-  api.post('api_auth.php?action=register2', payload);
+// Inscription : POST api_auth.php?action=register2
+export const authRegister = (payload) => {
+  return api.post('api_auth.php?action=register2', payload);
+};
 
 export default api;

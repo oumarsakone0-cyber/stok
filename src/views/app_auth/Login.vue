@@ -189,7 +189,7 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/authStore'
-import { authLogin } from '../../services/api'
+import { authLogin } from '../../services/api.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
