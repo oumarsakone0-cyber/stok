@@ -137,6 +137,12 @@ class AuthAPI {
 
             // Préparer les données utilisateur (sans le mot de passe)
             unset($user['mot_de_passe']);
+            
+            // S'assurer que le champ 'role' existe (mapper id_role vers role si nécessaire)
+            if (!isset($user['role']) && isset($user['id_role'])) {
+                $user['role'] = $user['id_role'];
+            }
+            
             $user['acces'] = $accesData;
             $user['token'] = $token;
 
@@ -415,12 +421,54 @@ class AuthAPI {
             $accessJson = is_string($user['access']) ? $user['access'] : json_encode($user['access']);
             $decoded = json_decode($accessJson, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                return $decoded;
+                // Convertir les codes de permission en format attendu par le frontend
+                $acces = [
+                    'magasins' => [],
+                    'entrepots' => [],
+                    'clients' => false,
+                    'fournisseurs' => false
+                ];
+                
+                // Si l'utilisateur a ALL ou ALL_TEST, donner accès à tout
+                if (in_array('ALL', $decoded) || in_array('ALL_TEST', $decoded)) {
+                    $acces['magasins'] = 'all';
+                    $acces['entrepots'] = 'all';
+                    $acces['clients'] = true;
+                    $acces['fournisseurs'] = true;
+                } else {
+                    // Mapper les codes de permission vers les modules
+                    // GT = Gestion entrepot
+                    if (in_array('GT', $decoded)) {
+                        $acces['entrepots'] = 'all';
+                    }
+                    
+                    // GCL = Gestion clients
+                    if (in_array('GCL', $decoded)) {
+                        $acces['clients'] = true;
+                    }
+                    
+                    // GF = Gestion fournisseur
+                    if (in_array('GF', $decoded)) {
+                        $acces['fournisseurs'] = true;
+                    }
+                    
+                    // GS, GV, GP peuvent donner accès aux magasins (à adapter selon votre logique)
+                    if (in_array('GS', $decoded) || in_array('GV', $decoded) || in_array('GP', $decoded)) {
+                        $acces['magasins'] = 'all';
+                    }
+                }
+                
+                return $acces;
             }
         }
         
-        // Fallback : retourner un tableau vide ou par défaut
-        return [];
+        // Fallback : retourner un objet vide avec la structure attendue
+        return [
+            'magasins' => [],
+            'entrepots' => [],
+            'clients' => false,
+            'fournisseurs' => false
+        ];
     }
 
     /**

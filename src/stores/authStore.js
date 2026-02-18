@@ -1,3 +1,4 @@
+
 import { defineStore } from 'pinia'
 
 export const useAuthStore = defineStore('auth', {
@@ -19,27 +20,113 @@ export const useAuthStore = defineStore('auth', {
     isManager: (state) => state.user?.role === 'manager',
     isVendeur: (state) => state.user?.role === 'vendeur',
     
+    // Fonction helper pour vérifier si l'utilisateur a tous les droits
+    _hasAllRights: (state) => {
+      if (!state.user) return false
+      // Vérifier dans access (codes de permission)
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string' 
+          ? JSON.parse(state.user.access) 
+          : state.user.access
+        if (Array.isArray(access) && (access.includes('ALL') || access.includes('ALL_TEST'))) {
+          return true
+        }
+      }
+      // Vérifier aussi dans acces si c'est un tableau de codes
+      if (Array.isArray(state.user.acces) && (state.user.acces.includes('ALL') || state.user.acces.includes('ALL_TEST'))) {
+        return true
+      }
+      return false
+    },
+    
+    // Vérifier si l'utilisateur a tous les droits (ALL ou ALL_TEST)
+    hasAllRights: (state) => {
+      if (!state.user) return false
+      // Vérifier dans access (codes de permission)
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string' 
+          ? JSON.parse(state.user.access) 
+          : state.user.access
+        if (Array.isArray(access) && (access.includes('ALL') || access.includes('ALL_TEST'))) {
+          return true
+        }
+      }
+      // Vérifier aussi dans acces si c'est un tableau de codes
+      if (Array.isArray(state.user.acces) && (state.user.acces.includes('ALL') || state.user.acces.includes('ALL_TEST'))) {
+        return true
+      }
+      return false
+    },
+    
     // Accès aux modules
     hasAccessToClients: (state) => {
       if (!state.user) return false
-      return state.user.acces?.clients === true || state.user.role === 'admin'
+      if (state.user.acces?.clients === true) return true
+      
+      // Vérifier si l'utilisateur a tous les droits
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string' 
+          ? JSON.parse(state.user.access) 
+          : state.user.access
+        if (Array.isArray(access) && (access.includes('ALL') || access.includes('ALL_TEST'))) {
+          return true
+        }
+        if (Array.isArray(access) && access.includes('GCL')) return true
+      }
+      return false
     },
     
     hasAccessToFournisseurs: (state) => {
       if (!state.user) return false
-      return state.user.acces?.fournisseurs === true || state.user.role === 'admin'
+      if (state.user.acces?.fournisseurs === true) return true
+      
+      // Vérifier si l'utilisateur a tous les droits
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string' 
+          ? JSON.parse(state.user.access) 
+          : state.user.access
+        if (Array.isArray(access) && (access.includes('ALL') || access.includes('ALL_TEST'))) {
+          return true
+        }
+        if (Array.isArray(access) && access.includes('GF')) return true
+      }
+      return false
     },
     
     // Accès magasins
     hasAccessToMagasins: (state) => {
       if (!state.user) return false
+      
       const acces = state.user.acces?.magasins
-      return acces === 'all' || (Array.isArray(acces) && acces.length > 0) || state.user.role === 'admin'
+      if (acces === 'all') return true
+      if (Array.isArray(acces) && acces.length > 0) return true
+      
+      // Vérifier si l'utilisateur a tous les droits ou les permissions spécifiques
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string' 
+          ? JSON.parse(state.user.access) 
+          : state.user.access
+        if (Array.isArray(access)) {
+          if (access.includes('ALL') || access.includes('ALL_TEST')) return true
+          if (access.includes('GS') || access.includes('GV') || access.includes('GP')) return true
+        }
+      }
+      return false
     },
     
     hasAccessToMagasin: (state) => (magasinId) => {
       if (!state.user) return false
-      if (state.user.role === 'admin') return true
+      
+      // Vérifier si l'utilisateur a tous les droits
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string' 
+          ? JSON.parse(state.user.access) 
+          : state.user.access
+        if (Array.isArray(access) && (access.includes('ALL') || access.includes('ALL_TEST'))) {
+          return true
+        }
+      }
+      
       const acces = state.user.acces?.magasins
       if (acces === 'all') return true
       if (Array.isArray(acces)) {
@@ -51,13 +138,37 @@ export const useAuthStore = defineStore('auth', {
     // Accès entrepôts
     hasAccessToEntrepots: (state) => {
       if (!state.user) return false
+      
       const acces = state.user.acces?.entrepots
-      return acces === 'all' || (Array.isArray(acces) && acces.length > 0) || state.user.role === 'admin'
+      if (acces === 'all') return true
+      if (Array.isArray(acces) && acces.length > 0) return true
+      
+      // Vérifier si l'utilisateur a tous les droits ou la permission GT
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string' 
+          ? JSON.parse(state.user.access) 
+          : state.user.access
+        if (Array.isArray(access)) {
+          if (access.includes('ALL') || access.includes('ALL_TEST')) return true
+          if (access.includes('GT')) return true
+        }
+      }
+      return false
     },
     
     hasAccessToEntrepot: (state) => (entrepotId) => {
       if (!state.user) return false
-      if (state.user.role === 'admin') return true
+      
+      // Vérifier si l'utilisateur a tous les droits
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string' 
+          ? JSON.parse(state.user.access) 
+          : state.user.access
+        if (Array.isArray(access) && (access.includes('ALL') || access.includes('ALL_TEST'))) {
+          return true
+        }
+      }
+      
       const acces = state.user.acces?.entrepots
       if (acces === 'all') return true
       if (Array.isArray(acces)) {
@@ -66,10 +177,21 @@ export const useAuthStore = defineStore('auth', {
       return false
     },
     
-    // Accès utilisateurs (admin uniquement)
+    // Accès utilisateurs (admin uniquement ou GU permission)
     hasAccessToUsers: (state) => {
       if (!state.user) return false
-      return state.user.role === 'admin'
+      
+      // Vérifier si l'utilisateur a tous les droits ou la permission GU
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string' 
+          ? JSON.parse(state.user.access) 
+          : state.user.access
+        if (Array.isArray(access)) {
+          if (access.includes('ALL') || access.includes('ALL_TEST')) return true
+          if (access.includes('GU')) return true
+        }
+      }
+      return false
     },
     
     // Liste des magasins accessibles
