@@ -69,6 +69,8 @@ function getUserFromToken() {
         $userId = $decoded->data->id;
 
         $db = new Database();
+        // IMPORTANT: Ne pas inclure 'role' dans le SELECT car cette colonne n'existe pas dans app_utilisateurs
+        // Le rôle est déterminé dynamiquement via: in_array('ALL', $user['access']) ? 'admin' : 'user'
         $sql = "SELECT id, nom, prenom, email, id_entreprise, access 
                 FROM app_utilisateurs 
                 WHERE id = ? AND statut = 'actif'";
