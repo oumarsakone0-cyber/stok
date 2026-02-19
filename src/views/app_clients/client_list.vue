@@ -431,9 +431,11 @@ import SidebarLayout from '../SidebarLayout.vue'
 import { getClients, addClient, updateClient, getStatsGlobal, getCreditsData } from '../../services/api.js'
 import ClientsDashboard from './ClientsDashboard.vue'
 import { useAuthStore } from '../../stores/authStore'
+import { useToast } from 'vue-toastification'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const toast = useToast()
 
 // State
 const loading = ref(false)
@@ -673,7 +675,7 @@ const closeClientModal = () => {
 
 const saveClient = async () => {
   if (!formClient.value.nom || !formClient.value.telephone) {
-    alert('Nom et telephone requis')
+    toast.error('Nom et telephone requis')
     return
   }
   saving.value = true
@@ -693,13 +695,13 @@ const saveClient = async () => {
       await loadClients()
       await loadStatsGlobal()
       closeClientModal()
-      alert(response.data.message)
+      toast.success(response.data.message)
     } else {
-      alert(response.data.error)
+      toast.error(response.data.error || 'Erreur inconnue')
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert('Erreur de sauvegarde')
+    toast.error('Erreur de sauvegarde')
   } finally {
     saving.value = false
   }
