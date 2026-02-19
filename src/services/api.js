@@ -1,3 +1,40 @@
+// Statistiques globales clients
+export const getStatsGlobal = (params = {}) => {
+  return api.get('api_clients.php?action=rapport_global', { params });
+};
+
+// Crédits en cours clients
+export const getCreditsData = (params = {}) => {
+  return api.get('api_clients.php?action=credits_en_cours', { params });
+};
+// ==================== CLIENTS ====================
+// Liste des clients
+export const getClients = (params = {}) => {
+  // params doit contenir id_entreprise et role
+  return api.get('api_clients.php?action=list_clients', { params });
+};
+
+// Détail d'un client
+export const getClient = (id_client) => {
+  return api.get('api_clients.php?action=get_client', { params: { id_client } });
+};
+
+// Ajouter un client
+export const addClient = (payload) => {
+  // payload doit contenir tous les champs de la table app_clients
+  return api.post('api_clients.php?action=add_client', payload);
+};
+
+// Modifier un client
+export const updateClient = (payload) => {
+  // payload doit contenir id_client et tous les champs à modifier
+  return api.post('api_clients.php?action=update_client', payload);
+};
+
+// Supprimer un client
+export const deleteClient = (id_client) => {
+  return api.post('api_clients.php?action=delete_client', { id_client });
+};
 import axios from 'axios';
 
 // Création d'une instance Axios pour toutes les requêtes API

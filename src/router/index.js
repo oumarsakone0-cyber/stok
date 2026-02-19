@@ -91,16 +91,17 @@ const routes = [
   {
     path: "/clients",
     name: "clients",
-    component: () => import("../views/clients/client_list.vue"),
+    component: () => import("../views/app_clients/client_list.vue"),
     meta: { 
       requiresAuth: true,
       requiresAccess: 'clients'
     }
   },
   {
+
     path: "/clients/:id",
     name: "clients-detail",
-    component: () => import("../views/clients/client_detail.vue"),
+    component: () => import("../views/app_clients/client_detail.vue"),
     meta: { 
       requiresAuth: true,
       requiresAccess: 'clients'
