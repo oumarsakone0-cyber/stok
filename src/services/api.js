@@ -9,9 +9,9 @@ export const getCreditsData = (params = {}) => {
 };
 // ==================== CLIENTS ====================
 // Liste des clients
-export const getClients = (params = {}) => {
-  // params doit contenir id_entreprise et role
-  return api.get('api_clients.php?action=list_clients', { params });
+export const getClients = () => {
+  // Le backend récupère id_entreprise et role via le token
+  return api.get('api_clients.php?action=list_clients');
 };
 
 // Détail d'un client
@@ -21,14 +21,16 @@ export const getClient = (id_client) => {
 
 // Ajouter un client
 export const addClient = (payload) => {
-  // payload doit contenir tous les champs de la table app_clients
-  return api.post('api_clients.php?action=add_client', payload);
+  // Ne pas envoyer id_entreprise ni create_by, le backend les récupère via le token
+  const { id_entreprise, create_by, ...rest } = payload;
+  return api.post('api_clients.php?action=add_client', rest);
 };
 
 // Modifier un client
 export const updateClient = (payload) => {
-  // payload doit contenir id_client et tous les champs à modifier
-  return api.post('api_clients.php?action=update_client', payload);
+  // Ne pas envoyer id_entreprise ni create_by, le backend les récupère via le token
+  const { id_entreprise, create_by, ...rest } = payload;
+  return api.post('api_clients.php?action=update_client', rest);
 };
 
 // Supprimer un client
