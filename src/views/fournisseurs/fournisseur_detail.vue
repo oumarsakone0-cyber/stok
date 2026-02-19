@@ -545,11 +545,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import SidebarLayout from '../SidebarLayout.vue'
-import api from '../../services/api.js'
+import { getApiBaseUrl } from '../../services/api.js'
 
 const router = useRouter()
 const route = useRoute()
 
+const API_BASE_URL = getApiBaseUrl()
 const fournisseurId = route.params.id
 
 // State
@@ -610,18 +611,17 @@ const formPaiement = ref({
   observation: ''
 })
 
+const randomParam = () => `&_=${Date.now()}_${Math.floor(Math.random() * 100000)}`
+
 // Methods
 const loadFournisseur = async () => {
   try {
-    const response = await api.get('api_fournisseurs.php', {
-      params: {
-        action: 'get_fournisseur',
-        id: fournisseurId,
-        _: Date.now() + '_' + Math.random().toString(36).slice(2)
-      }
-    })
-    if (response.data.success) {
-      fournisseur.value = response.data.data
+    const response = await fetch(
+      `${API_BASE_URL}/api_fournisseurs.php?action=get_fournisseur&id=${fournisseurId}${randomParam()}`
+    )
+    const data = await response.json()
+    if (data.success) {
+      fournisseur.value = data.data
     }
   } catch (error) {
     console.error('Erreur:', error)
@@ -630,15 +630,12 @@ const loadFournisseur = async () => {
 
 const loadStats = async () => {
   try {
-    const response = await api.get('api_fournisseurs.php', {
-      params: {
-        action: 'stats_fournisseur',
-        id: fournisseurId,
-        _: Date.now() + '_' + Math.random().toString(36).slice(2)
-      }
-    })
-    if (response.data.success) {
-      stats.value = response.data.data
+    const response = await fetch(
+      `${API_BASE_URL}/api_fournisseurs.php?action=stats_fournisseur&id=${fournisseurId}${randomParam()}`
+    )
+    const data = await response.json()
+    if (data.success) {
+      stats.value = data.data
     }
   } catch (error) {
     console.error('Erreur:', error)
@@ -647,15 +644,12 @@ const loadStats = async () => {
 
 const loadProduits = async () => {
   try {
-    const response = await api.get('api_fournisseurs.php', {
-      params: {
-        action: 'list_produits',
-        fournisseur_id: fournisseurId,
-        _: Date.now() + '_' + Math.random().toString(36).slice(2)
-      }
-    })
-    if (response.data.success) {
-      produits.value = response.data.data
+    const response = await fetch(
+      `${API_BASE_URL}/api_fournisseurs.php?action=list_produits&fournisseur_id=${fournisseurId}${randomParam()}`
+    )
+    const data = await response.json()
+    if (data.success) {
+      produits.value = data.data
     }
   } catch (error) {
     console.error('Erreur:', error)
@@ -664,15 +658,12 @@ const loadProduits = async () => {
 
 const loadCommandes = async () => {
   try {
-    const response = await api.get('api_fournisseurs.php', {
-      params: {
-        action: 'list_commandes',
-        fournisseur_id: fournisseurId,
-        _: Date.now() + '_' + Math.random().toString(36).slice(2)
-      }
-    })
-    if (response.data.success) {
-      commandes.value = response.data.data
+    const response = await fetch(
+      `${API_BASE_URL}/api_fournisseurs.php?action=list_commandes&fournisseur_id=${fournisseurId}${randomParam()}`
+    )
+    const data = await response.json()
+    if (data.success) {
+      commandes.value = data.data
     }
   } catch (error) {
     console.error('Erreur:', error)
@@ -734,20 +725,29 @@ const saveProduit = async () => {
   try {
     formProduit.value.fournisseur_id = fournisseurId
     
-    const action = editingProduit.value ? 'update_produit' : 'add_produit'
-    const response = await api.post(`api_fournisseurs.php?action=${action}`, formProduit.value)
+    const url = editingProduit.value 
+      ? `${API_BASE_URL}/api_fournisseurs.php?action=update_produit`
+      : `${API_BASE_URL}/api_fournisseurs.php?action=add_produit`
     
-    if (response.data.success) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formProduit.value)
+    })
+    
+    const data = await response.json()
+    
+    if (data.success) {
       await loadProduits()
       await loadStats()
       closeProduitModal()
-      alert(response.data.message || 'Opération réussie')
+      alert(data.message)
     } else {
-      alert(response.data.message || 'Erreur')
+      alert(data.message)
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert(error.response?.data?.message || 'Erreur de sauvegarde')
+    alert('Erreur de sauvegarde')
   } finally {
     saving.value = false
   }
@@ -757,18 +757,16 @@ const deleteProduit = async (id) => {
   if (!confirm('Supprimer ce produit ?')) return
 
   try {
-    const response = await api.get('api_fournisseurs.php', {
-      params: { action: 'delete_produit', id }
-    })
+    const response = await fetch(`${API_BASE_URL}/api_fournisseurs.php?action=delete_produit&id=${id}`)
+    const data = await response.json()
     
-    if (response.data.success) {
+    if (data.success) {
       await loadProduits()
       await loadStats()
-      alert(response.data.message || 'Produit supprimé')
+      alert(data.message)
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert(error.response?.data?.message || 'Erreur de suppression')
   }
 }
 
@@ -800,19 +798,25 @@ const saveCommande = async () => {
   try {
     formCommande.value.fournisseur_id = fournisseurId
     
-    const response = await api.post('api_fournisseurs.php?action=add_commande', formCommande.value)
+    const response = await fetch(`${API_BASE_URL}/api_fournisseurs.php?action=add_commande`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formCommande.value)
+    })
     
-    if (response.data.success) {
+    const data = await response.json()
+    
+    if (data.success) {
       await loadCommandes()
       await loadStats()
       closeCommandeModal()
-      alert(response.data.message || 'Commande créée')
+      alert(data.message)
     } else {
-      alert(response.data.message || 'Erreur')
+      alert(data.message)
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert(error.response?.data?.message || 'Erreur de création')
+    alert('Erreur de création')
   } finally {
     saving.value = false
   }
@@ -856,19 +860,25 @@ const savePaiement = async () => {
       fournisseur_id: fournisseurId
     }
     
-    const response = await api.post('api_fournisseurs.php?action=add_paiement', payload)
+    const response = await fetch(`${API_BASE_URL}/api_fournisseurs.php?action=add_paiement`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
     
-    if (response.data.success) {
+    const data = await response.json()
+    
+    if (data.success) {
       await loadCommandes()
       await loadStats()
       closePaiementModal()
-      alert(response.data.message || 'Paiement enregistré')
+      alert(data.message)
     } else {
-      alert(response.data.message || 'Erreur')
+      alert(data.message)
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert(error.response?.data?.message || 'Erreur d\'enregistrement')
+    alert('Erreur d\'enregistrement')
   } finally {
     saving.value = false
   }

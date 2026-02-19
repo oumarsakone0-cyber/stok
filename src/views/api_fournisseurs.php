@@ -30,11 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 try {
-    require_once __DIR__ . '/auth.php';
-    $user = getUserFromToken(); // récupère toutes les infos
-    $user_id = $user['id'];
-    $role = in_array('ALL', $user['access']) ? 'admin' : 'user';
-    
     require_once __DIR__ . '/config/database.php';
     
     if (!class_exists('Database')) {
@@ -109,15 +104,13 @@ try {
         }
         
         if ($action === 'list_fournisseurs') {
+            $user_id = $_GET['user_id'] ?? null;
             $id_entreprise = $_GET['id_entreprise'] ?? null;
             
             // REQUÊTE CORRECTE: app_fournisseurs avec create_by (PAS stok_fournisseurs avec user_id)
-            // Utiliser $user_id et $role du token (déjà défini au début)
             $sql = "SELECT *, id_fournisseur as id FROM app_fournisseurs WHERE 1=1";
             $params = [];
-            // Si l'utilisateur n'est pas admin, filtrer par create_by
-            // Inclure aussi les fournisseurs avec create_by IS NULL (créés avant l'implémentation du token)
-            if ($role !== 'admin') {
+            if ($user_id !== null && $user_id !== '') {
                 $sql .= " AND (create_by = ? OR create_by IS NULL)";
                 $params[] = $user_id;
             }
@@ -142,7 +135,7 @@ try {
         }
         
         if ($action === 'rapport_global') {
-            // Utiliser $user_id et $role du token (déjà défini au début)
+            $user_id = $_GET['user_id'] ?? null;
             $stats = [
                 'total_fournisseurs' => 0,
                 'fournisseurs_actifs' => 0,
@@ -153,9 +146,7 @@ try {
             ];
             
             try {
-                // Si l'utilisateur n'est pas admin, filtrer par create_by
-                // Inclure aussi les fournisseurs avec create_by IS NULL (créés avant l'implémentation du token)
-                if ($role !== 'admin') {
+                if ($user_id !== null && $user_id !== '') {
                     $sql = "SELECT 
                         COUNT(*) as total_fournisseurs,
                         COUNT(*) as fournisseurs_actifs,
@@ -194,13 +185,11 @@ try {
         }
         
         // Par défaut : liste des fournisseurs (app_fournisseurs)
-        // Utiliser $user_id et $role du token (déjà défini au début)
+        $user_id = $_GET['user_id'] ?? null;
         $id_entreprise = $_GET['id_entreprise'] ?? null;
         $sql = "SELECT *, id_fournisseur as id FROM app_fournisseurs WHERE 1=1";
         $params = [];
-        // Si l'utilisateur n'est pas admin, filtrer par create_by
-        // Inclure aussi les fournisseurs avec create_by IS NULL (créés avant l'implémentation du token)
-        if ($role !== 'admin') {
+        if ($user_id !== null && $user_id !== '') {
             $sql .= " AND (create_by = ? OR create_by IS NULL)";
             $params[] = $user_id;
         }
@@ -246,7 +235,7 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Le nom est requis']);
                 exit;
             }
-            // Utiliser $user_id du token (déjà défini au début) pour create_by
+            $create_by = isset($data['user_id']) ? (int)$data['user_id'] : (isset($data['create_by']) ? (int)$data['create_by'] : null);
             $sql = "INSERT INTO app_fournisseurs (id_entreprise, categorie_fournisseur, nom, adresse, contact, email, delai_livraison, notes, evaluation, date_creation, create_by, for_shop) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)";
             $params = [
                 isset($data['id_entreprise']) && $data['id_entreprise'] !== '' ? (int)$data['id_entreprise'] : null,
@@ -258,7 +247,7 @@ try {
                 $data['delai_livraison'] ?? $data['delai_livraison_moyen'] ?? null,
                 $data['notes'] ?? null,
                 isset($data['evaluation']) ? floatval($data['evaluation']) : (isset($data['note_evaluation']) ? floatval($data['note_evaluation']) : null),
-                $user_id, // Utiliser $user_id du token
+                $create_by,
                 isset($data['for_shop']) ? (int)$data['for_shop'] : 0
             ];
             $db->query($sql, $params);
@@ -328,7 +317,7 @@ try {
             echo json_encode(['success' => false, 'message' => 'Le nom est requis']);
             exit;
         }
-        // Utiliser $user_id du token (déjà défini au début) pour create_by
+        $create_by = isset($data['user_id']) ? (int)$data['user_id'] : (isset($data['create_by']) ? (int)$data['create_by'] : null);
         $sql = "INSERT INTO app_fournisseurs (id_entreprise, categorie_fournisseur, nom, adresse, contact, email, delai_livraison, notes, evaluation, date_creation, create_by, for_shop) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)";
         $params = [
             isset($data['id_entreprise']) && $data['id_entreprise'] !== '' ? (int)$data['id_entreprise'] : null,
@@ -340,7 +329,7 @@ try {
             $data['delai_livraison'] ?? null,
             $data['notes'] ?? null,
             isset($data['evaluation']) ? floatval($data['evaluation']) : null,
-            $user_id, // Utiliser $user_id du token
+            $create_by,
             isset($data['for_shop']) ? (int)$data['for_shop'] : 0
         ];
         $db->query($sql, $params);

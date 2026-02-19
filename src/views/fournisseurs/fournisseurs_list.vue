@@ -362,10 +362,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import SidebarLayout from '../SidebarLayout.vue'
 import { useAuthStore } from '../../stores/authStore'
-import api from '../../services/api.js'
+import { getApiBaseUrl } from '../../services/api.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+const API_BASE_URL = getApiBaseUrl()
 
 // State
 const loading = ref(false)
@@ -434,25 +436,25 @@ const filteredFournisseurs = computed(() => {
 })
 
 // Methods
-// Methods
+const randomParam = () => `&_=${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+// Construire les parametres user_id et role pour filtrer par utilisateur
+const getUserParams = () => {
+  const userId = authStore.user?.id
+  const role = authStore.isAdmin ? 'admin' : 'user'
+  return `&user_id=${userId}&role=${role}`
+}
+
 // Charger la liste des fournisseurs
 const loadFournisseurs = async () => {
   loading.value = true
   try {
-    const response = await api.get('api_fournisseurs.php', {
-      params: {
-        action: 'list_fournisseurs',
-        _: Date.now() + '_' + Math.random().toString(36).slice(2)
-      }
-    })
-    if (response.data.success) {
-      // S'assurer que data est un tableau
-      const data = response.data.data
-      if (Array.isArray(data)) {
-        fournisseurs.value = data
-      } else {
-        fournisseurs.value = []
-      }
+    const response = await fetch(
+      `${API_BASE_URL}/api_fournisseurs.php?action=list_fournisseurs${getUserParams()}${randomParam()}`
+    )
+    const data = await response.json()
+    if (data.success) {
+      fournisseurs.value = data.data || []
     } else {
       fournisseurs.value = []
     }
@@ -467,16 +469,14 @@ const loadFournisseurs = async () => {
 // Charger les stats globales des fournisseurs
 const loadStatsGlobal = async () => {
   try {
-    const response = await api.get('api_fournisseurs.php', {
-      params: {
-        action: 'rapport_global',
-        _: Date.now() + '_' + Math.random().toString(36).slice(2)
-      }
-    })
-    if (response.data.success) {
-      statsGlobal.value = response.data.data?.statistiques || response.data.data || {}
+    const response = await fetch(
+      `${API_BASE_URL}/api_fournisseurs.php?action=rapport_global${getUserParams()}${randomParam()}`
+    )
+    const data = await response.json()
+    if (data.success) {
+      statsGlobal.value = data.data?.statistiques || data.data || {}
     } else {
-      console.warn('Stats: API retourne success=false:', response.data.message || response.data.error)
+      console.warn('Stats: API retourne success=false:', data.message || data.error)
     }
   } catch (error) {
     console.error('Erreur lors du chargement des stats:', error)
@@ -524,23 +524,35 @@ const saveFournisseur = async () => {
 
   saving.value = true
   try {
-    const action = editingFournisseur.value ? 'update_fournisseur' : 'add_fournisseur'
-    const payload = { ...formFournisseur.value }
-    // Ne plus envoyer user_id - le backend le récupère du token
-
-    const response = await api.post(`api_fournisseurs.php?action=${action}`, payload)
+    const url = editingFournisseur.value 
+      ? `${API_BASE_URL}/api_fournisseurs.php?action=update_fournisseur`
+      : `${API_BASE_URL}/api_fournisseurs.php?action=add_fournisseur`
     
-    if (response.data.success) {
+    // Ajouter le user_id lors de la creation
+    const payload = { ...formFournisseur.value }
+    if (!editingFournisseur.value) {
+      payload.user_id = authStore.user?.id
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    
+    const data = await response.json()
+    
+    if (data.success) {
       await loadFournisseurs()
       await loadStatsGlobal()
       closeFournisseurModal()
-      alert(response.data.message || 'Opération réussie')
+      alert(data.message)
     } else {
-      alert(response.data.message || response.data.error || 'Erreur')
+      alert(data.error)
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert(error.response?.data?.message || 'Erreur de sauvegarde')
+    alert('Erreur de sauvegarde')
   } finally {
     saving.value = false
   }

@@ -507,6 +507,135 @@
               </div>
             </div>
 
+            <!-- Permissions (codes access) -->
+            <div :style="sectionTitleStyle">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7.4-6.3-4.6-6.3 4.6 2.3-7.4-6-4.6h7.6z"/>
+              </svg>
+              Permissions (codes)
+            </div>
+
+            <div :style="formGroupStyle">
+              <label :style="checkboxLabelStyle">
+                <input
+                  type="checkbox"
+                  v-model="formData.permissions_all"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">
+                  Tous les droits (ALL)
+                </span>
+              </label>
+              <p style="font-size:12px;color:#64748b;margin-top:4px;">
+                Cochez cette case pour donner accès à tous les modules. (ALL_TEST est réservé à l'inscription uniquement)
+              </p>
+            </div>
+
+            <div v-if="!formData.permissions_all" :style="checkboxGridStyle">
+              <!-- Ligne 1 : clients / fournisseurs / commandes / caisse -->
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GCL"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Gestion Clients (GCL)</span>
+              </label>
+
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GF"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Gestion Fournisseurs (GF)</span>
+              </label>
+
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GCM"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Gestion Commandes (GCM)</span>
+              </label>
+
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GCS"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Gestion Caisse (GCS)</span>
+              </label>
+
+              <!-- Ligne 2 : produits / stock / ventes -->
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GP"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Gestion Produits (GP)</span>
+              </label>
+
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GS"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Gestion Stock (GS)</span>
+              </label>
+
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GV"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Gestion Ventes (GV)</span>
+              </label>
+
+              <!-- Ligne 3 : utilisateurs / comptabilité / entrepôts -->
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GU"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Gestion Utilisateurs (GU)</span>
+              </label>
+
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GC"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Comptabilité (GC)</span>
+              </label>
+
+              <label :style="checkboxItemStyle">
+                <input
+                  type="checkbox"
+                  :value="PERMISSION_CODES.GT"
+                  v-model="formData.permissions_codes"
+                  :style="checkboxStyle"
+                />
+                <span :style="checkboxTextStyle">Gestion Entrepôts (GT)</span>
+              </label>
+            </div>
+
             <div :style="formGroupStyle">
               <label :style="checkboxLabelStyle">
                 <input type="checkbox" v-model="formData.actif" :style="checkboxStyle" />
@@ -538,6 +667,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import SidebarLayout from './SidebarLayout.vue'
+import { PERMISSION_CODES } from '../utils/permissions.js'
 
 const API_BASE_URL = 'https://sogetrag.com/apistok'
 
@@ -572,7 +702,10 @@ const formData = reactive({
   acces_entrepots: [],
   acces_clients: false,
   acces_fournisseurs: false,
-  actif: true
+  actif: true,
+  // Permissions (codes de la colonne access en base)
+  permissions_all: false,       // coche "Tous les droits (ALL)"
+  permissions_codes: []         // ex: ['GCL', 'GF', 'GT', ...]
 })
 
 // Computed
@@ -710,9 +843,43 @@ const saveUser = async () => {
       ? `${API_BASE_URL}/api_users.php?action=update`
       : `${API_BASE_URL}/api_users.php?action=add`
     
-    const payload = editingUser.value
+    // Construire le tableau des permissions (colonne access en base)
+    let accessCodes = []
+
+    if (formData.permissions_all) {
+      // Tous les droits -> ALL (ALL_TEST est réservé à l'inscription)
+      accessCodes = [PERMISSION_CODES.ALL]
+    } else {
+      // Codes cochés manuellement
+      accessCodes = [...formData.permissions_codes]
+
+      // S'assurer que les switches d'accès sont cohérents avec les codes
+      if (formData.acces_clients && !accessCodes.includes(PERMISSION_CODES.GCL)) {
+        accessCodes.push(PERMISSION_CODES.GCL)
+      }
+      if (formData.acces_fournisseurs && !accessCodes.includes(PERMISSION_CODES.GF)) {
+        accessCodes.push(PERMISSION_CODES.GF)
+      }
+      if (formData.acces_entrepots === 'all' && !accessCodes.includes(PERMISSION_CODES.GT)) {
+        accessCodes.push(PERMISSION_CODES.GT)
+      }
+      if (formData.acces_magasins === 'all') {
+        // GS, GV, GP donnent accès aux magasins
+        ;[PERMISSION_CODES.GS, PERMISSION_CODES.GV, PERMISSION_CODES.GP].forEach(code => {
+          if (!accessCodes.includes(code)) accessCodes.push(code)
+        })
+      }
+    }
+
+    const basePayload = editingUser.value
       ? { ...formData, id: editingUser.value.id }
       : { ...formData }
+
+    // Ajouter la colonne access sous forme de JSON (attendue par api_auth.php)
+    const payload = {
+      ...basePayload,
+      access: JSON.stringify(accessCodes)
+    }
 
     const response = await fetch(url, {
       method: editingUser.value ? 'PUT' : 'POST',
@@ -800,6 +967,25 @@ const editUser = (user) => {
   formData.acces_clients = user.acces.clients
   formData.acces_fournisseurs = user.acces.fournisseurs
   formData.actif = Boolean(user.actif)
+
+   // Initialiser les permissions à partir de user.access si présent
+   formData.permissions_all = false
+   formData.permissions_codes = []
+   if (user.access) {
+     try {
+       const accessArray = typeof user.access === 'string' ? JSON.parse(user.access) : user.access
+       if (Array.isArray(accessArray)) {
+         // Si ALL ou ALL_TEST présent, on considère que l'utilisateur a tous les droits
+         if (accessArray.includes(PERMISSION_CODES.ALL) || accessArray.includes(PERMISSION_CODES.ALL_TEST)) {
+           formData.permissions_all = true
+         }
+         // Garder uniquement les codes "simples" (on ne repropose pas ALL_TEST dans le formulaire)
+         formData.permissions_codes = accessArray.filter(code => ![PERMISSION_CODES.ALL, PERMISSION_CODES.ALL_TEST].includes(code))
+       }
+     } catch (e) {
+       console.warn('Impossible de parser user.access', e)
+     }
+   }
   showModal.value = true
 }
 
@@ -821,6 +1007,8 @@ const resetForm = () => {
   formData.acces_clients = false
   formData.acces_fournisseurs = false
   formData.actif = true
+  formData.permissions_all = false
+  formData.permissions_codes = []
 }
 
 const toggleAllMagasins = (e) => {

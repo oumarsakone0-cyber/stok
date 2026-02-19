@@ -11,6 +11,11 @@ export default defineConfig({
         target: 'https://www.aliadjame.com',
         changeOrigin: true,
         secure: true,
+        ws: false,
+        rewrite: (path) => {
+          // Garder le chemin tel quel pour éviter les doubles redirections
+          return path;
+        },
       },
     },
   },

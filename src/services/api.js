@@ -142,14 +142,23 @@ export const apiDelete = (url, config = {}) => api.delete(url, config);
 export const getApiBaseUrl = () => api.defaults.baseURL;
 
 // Authentification (api_auth.php)
+// Utiliser directement l'URL distante pour éviter les problèmes de proxy avec les redirections
+const authApi = axios.create({
+  baseURL: 'https://www.aliadjame.com/api',
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Connexion : POST api_auth.php?action=login
 export const authLogin = (email, password) => {
-  return api.post('api_auth.php?action=login', { email, password });
+  return authApi.post('api_auth.php?action=login', { email, password });
 };
 
 // Inscription : POST api_auth.php?action=register2
 export const authRegister = (payload) => {
-  return api.post('api_auth.php?action=register2', payload);
+  return authApi.post('api_auth.php?action=register2', payload);
 };
 
 export default api;

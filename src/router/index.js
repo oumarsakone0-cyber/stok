@@ -242,7 +242,8 @@ router.beforeEach((to, from, next) => {
   }
   
   // Vérifier si admin requis
-  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+  // Un utilisateur avec ALL ou ALL_TEST (hasAllRights) doit aussi avoir accès à ces pages
+  if (to.meta.requiresAdmin && !(authStore.isAdmin || authStore.hasAllRights)) {
     return next({ name: 'forbidden' })
   }
   
