@@ -235,11 +235,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import SidebarLayout from '../SidebarLayout.vue'
+import { getEntrepots, addEntrepot, updateEntrepot, deleteEntrepot } from '../../services/api'
+import { useToast } from 'vue-toastification'
 
 const router = useRouter()
+const toast = useToast()
 
-// API Configuration
-const API_BASE_URL = 'https://sogetrag.com/apistok'
+// API Configuration (remplacé par api.js)
 
 // State
 const loading = ref(false)
@@ -269,17 +271,13 @@ const formEntrepot = ref({
 const loadEntrepots = async () => {
   loading.value = true
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_entrepots.php?action=list_entrepots&_t=${Date.now()}`
-    )
-    const data = await response.json()
-
+    const { data } = await getEntrepots()
     if (data.success) {
       entrepots.value = data.data
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert('Erreur de chargement')
+    toast.error('Erreur de chargement')
   } finally {
     loading.value = false
   }
@@ -319,36 +317,41 @@ const closeEntrepotModal = () => {
 
 const saveEntrepot = async () => {
   if (!formEntrepot.value.nom || !formEntrepot.value.code) {
-    alert('Nom et code requis')
+    toast.error('Nom et code requis')
     return
   }
-
   saving.value = true
   try {
-    const url = editingEntrepot.value 
-      ? `${API_BASE_URL}/api_entrepots.php?action=update_entrepot`
-      : `${API_BASE_URL}/api_entrepots.php?action=add_entrepot`
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formEntrepot.value)
-    })
-    
-    const data = await response.json()
-    
+    const apiCall = editingEntrepot.value ? updateEntrepot : addEntrepot
+    const { data } = await apiCall(formEntrepot.value)
     if (data.success) {
       await loadEntrepots()
       closeEntrepotModal()
-      alert(data.message)
+      toast.success(data.message)
     } else {
-      alert(data.error)
+      toast.error(data.error)
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert('Erreur de sauvegarde')
+    toast.error('Erreur de sauvegarde')
   } finally {
     saving.value = false
+  }
+}
+
+const removeEntrepot = async (entrepot) => {
+  if (!confirm(`Supprimer l'entrepôt "${entrepot.nom}" ?`)) return
+  try {
+    const { data } = await deleteEntrepot(entrepot.id)
+    if (data.success) {
+      await loadEntrepots()
+      toast.success('Entrepôt supprimé !')
+    } else {
+      toast.error(data.error)
+    }
+  } catch (error) {
+    console.error('Erreur:', error)
+    toast.error('Erreur lors de la suppression')
   }
 }
 

@@ -416,6 +416,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import SidebarLayout from '../SidebarLayout.vue'
 import EntrepotRapportPeriode from './EntrepotRapportPeriode.vue'
+import { getEntrepot, getEntrepotStats, getEntrepotProduits, getEntrepotMouvements, addEntrepotProduit, updateEntrepotProduit, addEntrepotMouvement } from '../../services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -476,10 +477,7 @@ const randomParam = () => `&_=${Date.now()}_${Math.random().toString(36).slice(2
 // Methods
 const loadEntrepot = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_entrepots.php?action=get_entrepot&id=${entrepotId.value}${randomParam()}`
-    )
-    const data = await response.json()
+    const { data } = await getEntrepot(entrepotId.value)
     if (data.success) {
       entrepot.value = data.data
     }
@@ -490,10 +488,7 @@ const loadEntrepot = async () => {
 
 const loadStats = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_entrepots.php?action=stats_entrepot&id=${entrepotId.value}${randomParam()}`
-    )
-    const data = await response.json()
+    const { data } = await getEntrepotStats(entrepotId.value)
     if (data.success) {
       stats.value = data.data
     }
@@ -504,10 +499,7 @@ const loadStats = async () => {
 
 const loadProduits = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_entrepots.php?action=list_produits&entrepot_id=${entrepotId.value}${randomParam()}`
-    )
-    const data = await response.json()
+    const { data } = await getEntrepotProduits(entrepotId.value)
     if (data.success) {
       produits.value = data.data
     }
@@ -518,10 +510,7 @@ const loadProduits = async () => {
 
 const loadMouvements = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_entrepots.php?action=list_mouvements&entrepot_id=${entrepotId.value}${randomParam()}`
-    )
-    const data = await response.json()
+    const { data } = await getEntrepotMouvements(entrepotId.value)
     if (data.success) {
       mouvements.value = data.data
     }
@@ -570,37 +559,25 @@ const closeProduitModal = () => {
 
 const saveProduit = async () => {
   if (!formProduit.value.reference || !formProduit.value.nom) {
-    alert('Référence et nom requis')
+    toast.error('Référence et nom requis')
     return
   }
-
   saving.value = true
   try {
     formProduit.value.entrepot_id = entrepotId.value
-    
-    const url = editingProduit.value 
-      ? `${API_BASE_URL}/api_entrepots.php?action=update_produit`
-      : `${API_BASE_URL}/api_entrepots.php?action=add_produit`
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formProduit.value)
-    })
-    
-    const data = await response.json()
-    
+    const apiCall = editingProduit.value ? updateEntrepotProduit : addEntrepotProduit
+    const { data } = await apiCall(formProduit.value)
     if (data.success) {
       await loadProduits()
       await loadStats()
       closeProduitModal()
-      alert(data.message)
+      toast.success(data.message)
     } else {
-      alert(data.error)
+      toast.error(data.error)
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert('Erreur de sauvegarde')
+    toast.error('Erreur de sauvegarde')
   } finally {
     saving.value = false
   }
@@ -624,32 +601,23 @@ const closeMouvementModal = () => {
 
 const saveMouvement = async () => {
   if (!formMouvement.value.produit_id || !formMouvement.value.quantite || !formMouvement.value.motif) {
-    alert('Produit, quantité et motif requis')
+    toast.error('Produit, quantité et motif requis')
     return
   }
-
   saving.value = true
   try {
     formMouvement.value.entrepot_id = entrepotId.value
-    
-    const response = await fetch(`${API_BASE_URL}/api_entrepots.php?action=add_mouvement`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formMouvement.value)
-    })
-    
-    const data = await response.json()
-    
+    const { data } = await addEntrepotMouvement(formMouvement.value)
     if (data.success) {
       await Promise.all([loadMouvements(), loadProduits(), loadStats()])
       closeMouvementModal()
-      alert(data.message)
+      toast.success(data.message)
     } else {
-      alert(data.error)
+      toast.error(data.error)
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert('Erreur de sauvegarde')
+    toast.error('Erreur de sauvegarde')
   } finally {
     saving.value = false
   }

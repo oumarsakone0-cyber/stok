@@ -7,11 +7,12 @@ export const getStatsGlobal = (params = {}) => {
 export const getCreditsData = (params = {}) => {
   return api.get('api_clients.php?action=credits_en_cours', { params });
 };
+
 // ==================== CLIENTS ====================
 // Liste des clients
-export const getClients = () => {
-  // Le backend récupère id_entreprise et role via le token
-  return api.get('api_clients.php?action=list_clients');
+export const getClients = (params = {}) => {
+  // params doit contenir id_entreprise et role
+  return api.get('api_clients.php?action=list_clients', { params });
 };
 
 // Détail d'un client
@@ -21,27 +22,82 @@ export const getClient = (id_client) => {
 
 // Ajouter un client
 export const addClient = (payload) => {
-  // Ne pas envoyer id_entreprise ni create_by, le backend les récupère via le token
-  const { id_entreprise, create_by, ...rest } = payload;
-  return api.post('api_clients.php?action=add_client', rest);
+  // payload doit contenir tous les champs de la table app_clients
+  return api.post('api_clients.php?action=add_client', payload);
 };
 
 // Modifier un client
 export const updateClient = (payload) => {
-  // Ne pas envoyer id_entreprise ni create_by, le backend les récupère via le token
-  const { id_entreprise, create_by, ...rest } = payload;
-  return api.post('api_clients.php?action=update_client', rest);
+  // payload doit contenir id_client et tous les champs à modifier
+  return api.post('api_clients.php?action=update_client', payload);
 };
 
 // Supprimer un client
 export const deleteClient = (id_client) => {
   return api.post('api_clients.php?action=delete_client', { id_client });
 };
+
+// ==================== ENTREPOTS ====================
+// Liste des entrepôts
+export const getEntrepots = (params = {}) => {
+  return api.get('api_entrepots.php?action=list_entrepots', { params });
+};
+
+// Détail d'un entrepôt
+export const getEntrepot = (id) => {
+  return api.get('api_entrepots.php?action=get_entrepot', { params: { id } });
+};
+
+// Statistiques d’un entrepôt
+export const getEntrepotStats = (id) => {
+  return api.get('api_entrepots.php?action=stats_entrepot', { params: { id } });
+};
+
+// Liste des produits d’un entrepôt
+export const getEntrepotProduits = (entrepot_id) => {
+  return api.get('api_entrepots.php?action=list_produits', { params: { entrepot_id } });
+};
+
+// Liste des mouvements d’un entrepôt
+export const getEntrepotMouvements = (entrepot_id) => {
+  return api.get('api_entrepots.php?action=list_mouvements', { params: { entrepot_id } });
+};
+
+// Ajouter un produit
+export const addEntrepotProduit = (payload) => {
+  return api.post('api_entrepots.php?action=add_produit', payload);
+};
+
+// Modifier un produit
+export const updateEntrepotProduit = (payload) => {
+  return api.post('api_entrepots.php?action=update_produit', payload);
+};
+
+// Ajouter un mouvement
+export const addEntrepotMouvement = (payload) => {
+  return api.post('api_entrepots.php?action=add_mouvement', payload);
+};
+
+// Ajouter un entrepôt
+export const addEntrepot = (payload) => {
+  return api.post('api_entrepots.php?action=add_entrepot', payload);
+};
+
+// Modifier un entrepôt
+export const updateEntrepot = (payload) => {
+  return api.post('api_entrepots.php?action=update_entrepot', payload);
+};
+
+// Supprimer un entrepôt
+export const deleteEntrepot = (id) => {
+  return api.post('api_entrepots.php?action=delete_entrepot', { id });
+};
+
 import axios from 'axios';
 
-// En dev, utiliser le proxy Vite (/api) pour éviter CORS ; en prod, URL réelle
+// Création d'une instance Axios pour toutes les requêtes API
 const api = axios.create({
-  baseURL: import.meta.env.DEV ? '/api' : 'https://www.aliadjame.com/api',
+  baseURL: 'https://www.aliadjame.com/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -66,23 +122,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) {
       if (error.response.status === 401) {
-        // Ne JAMAIS déconnecter pour les requêtes de login/register (erreur normale)
-        const url = error.config?.url || '';
-        if (url.includes('api_auth.php')) {
-          // C'est une erreur de login/register, ne pas déconnecter
-          return Promise.reject(error);
-        }
-        
-        // Ne déconnecter que si on n'est pas déjà sur la page de login/register
-        const currentPath = window.location.pathname;
-        if (currentPath !== '/login' && currentPath !== '/register') {
-          // Déconnexion automatique si le token n'est plus valide
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          localStorage.removeItem('isAuthenticated');
-          console.warn('Session expirée ou non autorisée');
-        }
-        // Ne pas rediriger ici - laisser le router gérer via beforeEach
+        // Déconnexion automatique si le token n'est plus valide
+        localStorage.removeItem('token');
+        // window.location.href = '/login'; // Décommentez pour rediriger
+        console.warn('Session expirée ou non autorisée');
       }
     }
     return Promise.reject(error);
