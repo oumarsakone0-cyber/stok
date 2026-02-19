@@ -147,16 +147,16 @@
                   <p v-if="fournisseur.nom_entreprise" :style="entrepriseStyle">{{ fournisseur.nom_entreprise }}</p>
                 </td>
                 <td :style="tdStyle">
-                  <p :style="phoneStyle">{{ fournisseur.telephone }}</p>
+                  <p :style="phoneStyle">{{ fournisseur.contact || fournisseur.telephone || 'N/A' }}</p>
                   <p v-if="fournisseur.email" :style="emailStyle">{{ fournisseur.email }}</p>
                 </td>
                 <td :style="tdStyle">
-                  <p :style="adresseStyle">{{ fournisseur.quartier || 'N/A' }}</p>
+                  <p :style="adresseStyle">{{ fournisseur.adresse || fournisseur.quartier || 'N/A' }}</p>
                   <p :style="villeStyle">{{ fournisseur.ville || '' }}</p>
                 </td>
                 <td :style="tdStyle">
-                  <span :style="typeBadgeStyle(fournisseur.type_fournisseur)">
-                    {{ fournisseur.type_fournisseur }}
+                  <span :style="typeBadgeStyle(fournisseur.categorie_fournisseur || fournisseur.type_fournisseur)">
+                    {{ fournisseur.categorie_fournisseur || fournisseur.type_fournisseur || 'N/A' }}
                   </span>
                 </td>
                 <td :style="tdStyle">
@@ -362,11 +362,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import SidebarLayout from '../SidebarLayout.vue'
 import { useAuthStore } from '../../stores/authStore'
+import api from '../../services/api.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
-
-const API_BASE_URL = 'https://www.aliadjame.com/api'
 
 // State
 const loading = ref(false)
@@ -409,47 +408,57 @@ const filteredFournisseurs = computed(() => {
   
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    result = result.filter(f => 
-      f.nom.toLowerCase().includes(query) ||
-      (f.nom_entreprise && f.nom_entreprise.toLowerCase().includes(query)) ||
-      f.telephone.includes(query)
-    )
+    result = result.filter(f => {
+      const nomMatch = f.nom && f.nom.toLowerCase().includes(query)
+      const entrepriseMatch = f.nom_entreprise && f.nom_entreprise.toLowerCase().includes(query)
+      const contactMatch = (f.contact || f.telephone || '').toString().includes(query)
+      return nomMatch || entrepriseMatch || contactMatch
+    })
   }
   
   if (filterType.value) {
-    result = result.filter(f => f.type_fournisseur === filterType.value)
+    result = result.filter(f => {
+      const type = f.type_fournisseur || f.categorie_fournisseur
+      return type === filterType.value
+    })
   }
   
   if (filterStatut.value) {
-    result = result.filter(f => f.statut === filterStatut.value)
+    result = result.filter(f => {
+      // Le champ statut peut ne pas exister, donc on ne filtre que s'il existe
+      return !f.statut || f.statut === filterStatut.value
+    })
   }
   
   return result
 })
 
 // Methods
-const randomParam = () => `&_=${Date.now()}_${Math.random().toString(36).slice(2)}`
-
-// Construire les parametres user_id et role pour filtrer par utilisateur
-const getUserParams = () => {
-  const userId = authStore.user?.id
-  const role = authStore.isAdmin ? 'admin' : 'user'
-  return `&user_id=${userId}&role=${role}`
-}
-
+// Methods
 // Charger la liste des fournisseurs
 const loadFournisseurs = async () => {
   loading.value = true
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_fournisseurs.php?action=list_fournisseurs${getUserParams()}${randomParam()}`
-    )
-    const data = await response.json()
-    if (data.success) {
-      fournisseurs.value = data.data
+    const response = await api.get('api_fournisseurs.php', {
+      params: {
+        action: 'list_fournisseurs',
+        _: Date.now() + '_' + Math.random().toString(36).slice(2)
+      }
+    })
+    if (response.data.success) {
+      // S'assurer que data est un tableau
+      const data = response.data.data
+      if (Array.isArray(data)) {
+        fournisseurs.value = data
+      } else {
+        fournisseurs.value = []
+      }
+    } else {
+      fournisseurs.value = []
     }
   } catch (error) {
-    console.error('Erreur:', error)
+    console.error('Erreur lors du chargement des fournisseurs:', error)
+    fournisseurs.value = []
   } finally {
     loading.value = false
   }
@@ -458,15 +467,19 @@ const loadFournisseurs = async () => {
 // Charger les stats globales des fournisseurs
 const loadStatsGlobal = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_fournisseurs.php?action=rapport_global${getUserParams()}${randomParam()}`
-    )
-    const data = await response.json()
-    if (data.success) {
-      statsGlobal.value = data.data.statistiques
+    const response = await api.get('api_fournisseurs.php', {
+      params: {
+        action: 'rapport_global',
+        _: Date.now() + '_' + Math.random().toString(36).slice(2)
+      }
+    })
+    if (response.data.success) {
+      statsGlobal.value = response.data.data?.statistiques || response.data.data || {}
+    } else {
+      console.warn('Stats: API retourne success=false:', response.data.message || response.data.error)
     }
   } catch (error) {
-    console.error('Erreur:', error)
+    console.error('Erreur lors du chargement des stats:', error)
   }
 }
 
@@ -511,35 +524,23 @@ const saveFournisseur = async () => {
 
   saving.value = true
   try {
-    const url = editingFournisseur.value 
-      ? `${API_BASE_URL}/api_fournisseurs.php?action=update_fournisseur`
-      : `${API_BASE_URL}/api_fournisseurs.php?action=add_fournisseur`
-    
-    // Ajouter le user_id lors de la creation
+    const action = editingFournisseur.value ? 'update_fournisseur' : 'add_fournisseur'
     const payload = { ...formFournisseur.value }
-    if (!editingFournisseur.value) {
-      payload.user_id = authStore.user?.id
-    }
+    // Ne plus envoyer user_id - le backend le récupère du token
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
+    const response = await api.post(`api_fournisseurs.php?action=${action}`, payload)
     
-    const data = await response.json()
-    
-    if (data.success) {
+    if (response.data.success) {
       await loadFournisseurs()
       await loadStatsGlobal()
       closeFournisseurModal()
-      alert(data.message)
+      alert(response.data.message || 'Opération réussie')
     } else {
-      alert(data.error)
+      alert(response.data.message || response.data.error || 'Erreur')
     }
   } catch (error) {
     console.error('Erreur:', error)
-    alert('Erreur de sauvegarde')
+    alert(error.response?.data?.message || 'Erreur de sauvegarde')
   } finally {
     saving.value = false
   }

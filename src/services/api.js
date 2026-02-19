@@ -37,9 +37,9 @@ export const deleteClient = (id_client) => {
 };
 import axios from 'axios';
 
-// Création d'une instance Axios pour toutes les requêtes API
+// En dev, utiliser le proxy Vite (/api) pour éviter CORS ; en prod, URL réelle
 const api = axios.create({
-  baseURL: 'https://www.aliadjame.com/api',
+  baseURL: import.meta.env.DEV ? '/api' : 'https://www.aliadjame.com/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -64,10 +64,23 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) {
       if (error.response.status === 401) {
-        // Déconnexion automatique si le token n'est plus valide
-        localStorage.removeItem('token');
-        // window.location.href = '/login'; // Décommentez pour rediriger
-        console.warn('Session expirée ou non autorisée');
+        // Ne JAMAIS déconnecter pour les requêtes de login/register (erreur normale)
+        const url = error.config?.url || '';
+        if (url.includes('api_auth.php')) {
+          // C'est une erreur de login/register, ne pas déconnecter
+          return Promise.reject(error);
+        }
+        
+        // Ne déconnecter que si on n'est pas déjà sur la page de login/register
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login' && currentPath !== '/register') {
+          // Déconnexion automatique si le token n'est plus valide
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('isAuthenticated');
+          console.warn('Session expirée ou non autorisée');
+        }
+        // Ne pas rediriger ici - laisser le router gérer via beforeEach
       }
     }
     return Promise.reject(error);
