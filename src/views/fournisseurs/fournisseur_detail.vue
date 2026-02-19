@@ -549,7 +549,7 @@ import SidebarLayout from '../SidebarLayout.vue'
 const router = useRouter()
 const route = useRoute()
 
-const API_BASE_URL = 'https://sogetrag.com/apistok'
+const API_BASE_URL = 'https://www.aliadjame.com/api'
 const fournisseurId = route.params.id
 
 // State
