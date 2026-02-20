@@ -188,6 +188,24 @@
             <span>Fournisseurs</span>
           </button>
 
+          <!-- Comptabilités (si accès) -->
+          <button 
+            v-if="authStore.hasAccessToComptabilites"
+            :style="getNavItemStyle('comptabilites')" 
+            @click="navigateTo('/comptabilites')"
+            @mouseenter="hoveredNav = 'comptabilites'" 
+            @mouseleave="hoveredNav = null"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="3" width="16" height="18" rx="2"/>
+              <line x1="8" y1="7" x2="16" y2="7"/>
+              <line x1="8" y1="11" x2="16" y2="11"/>
+              <line x1="8" y1="15" x2="12" y2="15"/>
+              <line x1="14" y1="15" x2="16" y2="15"/>
+            </svg>
+            <span>Comptabilités</span>
+          </button>
+
           <!-- Utilisateurs (admin uniquement) -->
           <button 
             v-if="authStore.hasAccessToUsers"

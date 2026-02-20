@@ -126,6 +126,69 @@ const routes = [
     }
   },
   {
+    path: "/comptabilites",
+    name: "comptabilites",
+    redirect: "/comptabilites/depenses",
+    meta: {
+      requiresAuth: true,
+      requiresAccess: 'comptabilite'
+    }
+  },
+  {
+    path: "/comptabilites/depenses",
+    name: "comptabilites-depenses",
+    component: () => import("../views/comptabilites/GestionDepenses.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAccess: 'comptabilite'
+    }
+  },
+  {
+    path: "/comptabilites/motifs",
+    name: "comptabilites-motifs",
+    component: () => import("../views/comptabilites/MotifsDepense.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAccess: 'comptabilite'
+    }
+  },
+  {
+    path: "/comptabilites/factures",
+    name: "comptabilites-factures",
+    component: () => import("../views/comptabilites/Factures.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAccess: 'comptabilite'
+    }
+  },
+  {
+    path: "/comptabilites/banque",
+    name: "comptabilites-banque",
+    component: () => import("../views/comptabilites/GestionBancaire.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAccess: 'comptabilite'
+    }
+  },
+  {
+    path: "/comptabilites/banque/comptes",
+    name: "comptabilites-banque-comptes",
+    component: () => import("../views/comptabilites/ComptesBancaires.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAccess: 'comptabilite'
+    }
+  },
+  {
+    path: "/comptabilites/banque/transactions",
+    name: "comptabilites-banque-transactions",
+    component: () => import("../views/comptabilites/TransactionsBancaires.vue"),
+    meta: {
+      requiresAuth: true,
+      requiresAccess: 'comptabilite'
+    }
+  },
+  {
     path: "/utilisateurs",
     name: "utilisateurs",
     component: () => import("../views/Users.vue"),
@@ -235,6 +298,12 @@ router.beforeEach((to, from, next) => {
         
       case 'users':
         if (!authStore.hasAccessToUsers) {
+          return next({ name: 'forbidden' })
+        }
+        break
+
+      case 'comptabilite':
+        if (!authStore.hasAccessToComptabilites) {
           return next({ name: 'forbidden' })
         }
         break

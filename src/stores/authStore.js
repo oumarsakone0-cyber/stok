@@ -193,6 +193,22 @@ export const useAuthStore = defineStore('auth', {
       }
       return false
     },
+
+    // Accès comptabilités (GC permission)
+    hasAccessToComptabilites: (state) => {
+      if (!state.user) return false
+
+      if (state.user.access) {
+        const access = typeof state.user.access === 'string'
+          ? JSON.parse(state.user.access)
+          : state.user.access
+        if (Array.isArray(access)) {
+          if (access.includes('ALL') || access.includes('ALL_TEST')) return true
+          if (access.includes('GC')) return true
+        }
+      }
+      return false
+    },
     
     // Liste des magasins accessibles
     accessibleMagasins: (state) => {
