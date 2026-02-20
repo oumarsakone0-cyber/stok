@@ -128,7 +128,7 @@ const routes = [
   {
     path: "/comptabilites",
     name: "comptabilites",
-    redirect: "/comptabilites/depenses",
+    component: () => import("../views/comptabilites/ComptabilitesDashboard.vue"),
     meta: {
       requiresAuth: true,
       requiresAccess: 'comptabilite'

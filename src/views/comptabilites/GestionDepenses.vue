@@ -7,8 +7,10 @@
           <p :style="subtitleStyle">Dépenses, filtres par période, motifs et pièces justificatives</p>
         </div>
         <div :style="{display:'flex', gap:'10px', flexWrap:'wrap'}">
+          <button :style="secondaryBtnStyle" @click="goTo('/comptabilites')">Accueil</button>
           <button :style="secondaryBtnStyle" @click="goTo('/comptabilites/motifs')">Motifs</button>
           <button :style="secondaryBtnStyle" @click="goTo('/comptabilites/factures')">Factures</button>
+          <button :style="secondaryBtnStyle" @click="goTo('/comptabilites/banque')">Gestion bancaire</button>
           <button :style="primaryBtnStyle" @click="openDepenseModal()">Nouvelle dépense</button>
         </div>
       </header>
