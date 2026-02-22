@@ -526,19 +526,17 @@ const getUserParams = () => {
 const loadClients = async () => {
   loading.value = true
   try {
-    const params = getUserParams()
-    params._rand = `${Date.now()}_${Math.random().toString(36).slice(2)}`
-    const response = await getClients(params)
+    const response = await getClients(); // plus de params
     if (response.data.success) {
-      clients.value = response.data.data
+      clients.value = response.data.data;
     }
   } catch (error) {
-    console.error('Erreur:', error)
-    alert('Erreur de chargement des clients')
+    console.error('Erreur:', error);
+    alert('Erreur de chargement des clients');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const loadStatsGlobal = async () => {
   try {

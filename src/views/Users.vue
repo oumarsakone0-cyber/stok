@@ -15,10 +15,10 @@
           <svg :style="subtitleIconStyle" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
           </svg>
-          {{ filteredUsers.length }} utilisateur(s){{ activeFilter !== 'all' ? ' filtré(s)' : '' }}
+          {{ filteredUsers.length }} utilisateur(s){{ activeFilter !== 'all' ? ' filtr&eacute;(s)' : '' }}
         </p>
         
-        <!-- Filtres -->
+        <!-- Filtres par codes access -->
         <div :style="filtersContainerStyle">
           <button 
             :style="getFilterButtonStyle('all')"
@@ -27,41 +27,15 @@
             Tous
           </button>
           <button 
-            :style="getFilterButtonStyle('magasins')"
-            @click="activeFilter = 'magasins'"
+            v-for="code in ACCESS_CODES_LIST"
+            :key="code.code"
+            :style="getFilterButtonStyle(code.code)"
+            @click="activeFilter = code.code"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              <path :d="code.icon"/>
             </svg>
-            Magasins
-          </button>
-          <button 
-            :style="getFilterButtonStyle('entrepots')"
-            @click="activeFilter = 'entrepots'"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 8.35V20a2 2 0 01-2 2H4a2 2 0 01-2-2V8.35A2 2 0 013.26 6.5l8-3.2a2 2 0 011.48 0l8 3.2A2 2 0 0122 8.35z"/>
-            </svg>
-            Entrepôts
-          </button>
-          <button 
-            :style="getFilterButtonStyle('clients')"
-            @click="activeFilter = 'clients'"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-            </svg>
-            Clients
-          </button>
-          <button 
-            :style="getFilterButtonStyle('fournisseurs')"
-            @click="activeFilter = 'fournisseurs'"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-            </svg>
-            Fournisseurs
+            {{ code.short }}
           </button>
         </div>
       </div>
@@ -93,7 +67,7 @@
           </svg>
         </div>
         <div>
-          <div :style="statValueStyle">{{ stats.total }}</div>
+          <div :style="statValueStyle">{{ users.length }}</div>
           <div :style="statLabelStyle">Total Utilisateurs</div>
         </div>
       </div>
@@ -106,7 +80,7 @@
           </svg>
         </div>
         <div>
-          <div :style="statValueStyle">{{ stats.actifs }}</div>
+          <div :style="statValueStyle">{{ countByStatut('actif') }}</div>
           <div :style="statLabelStyle">Actifs</div>
         </div>
       </div>
@@ -120,7 +94,7 @@
           </svg>
         </div>
         <div>
-          <div :style="statValueStyle">{{ getRoleCount('admin') }}</div>
+          <div :style="statValueStyle">{{ countByRole(1) }}</div>
           <div :style="statLabelStyle">Administrateurs</div>
         </div>
       </div>
@@ -134,8 +108,33 @@
         </div>
         <div>
           <div :style="statValueStyle">{{ getUsersWithAccess() }}</div>
-          <div :style="statLabelStyle">Avec accès</div>
+          <div :style="statLabelStyle">Avec acc&egrave;s</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div :style="searchBarContainerStyle" class="fade-in" style="animation-delay: 0.15s">
+      <div :style="searchInputWrapperStyle">
+        <svg :style="searchIconStyle" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Rechercher par nom, pr&eacute;nom ou email..."
+          :style="searchInputStyle"
+        />
+        <button
+          v-if="searchQuery"
+          :style="searchClearBtnStyle"
+          @click="searchQuery = ''"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -153,11 +152,25 @@
         <line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
       <p>{{ error }}</p>
-      <button :style="retryButtonStyle" @click="loadUsers">Réessayer</button>
+      <button :style="retryButtonStyle" @click="loadUsers">R&eacute;essayer</button>
+    </div>
+
+    <!-- Empty State -->
+    <div v-if="!loading && !error && filteredUsers.length === 0" :style="emptyStateStyle">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+        <path d="M16 3.13a4 4 0 010 7.75"/>
+      </svg>
+      <p :style="emptyStateTitleStyle">Aucun utilisateur trouv&eacute;</p>
+      <p :style="emptyStateSubStyle">
+        {{ searchQuery ? 'Essayez de modifier votre recherche' : 'Aucun utilisateur ne correspond au filtre s&eacute;lectionn&eacute;' }}
+      </p>
     </div>
 
     <!-- Users Grid -->
-    <div v-if="!loading && !error" :style="gridStyle">
+    <div v-if="!loading && !error && filteredUsers.length > 0" :style="gridStyle">
       <div 
         v-for="(user, index) in filteredUsers" 
         :key="user.id"
@@ -165,18 +178,24 @@
         @mouseenter="hoveredCard = index"
         @mouseleave="hoveredCard = null"
         class="card fade-in"
-        :class="'delay-' + (index + 2)"
+        :class="'delay-' + Math.min(index + 2, 5)"
       >
         <!-- Card Glow Effect -->
         <div :style="getCardGlowStyle(index)"></div>
         
         <div :style="cardHeaderStyle">
           <div :style="getAvatarStyle(user, index)">
-            {{ getInitials(user) }}
+            <img 
+              v-if="user.photo" 
+              :src="user.photo" 
+              :alt="user.nom"
+              :style="avatarImgStyle"
+            />
+            <span v-else>{{ getInitials(user) }}</span>
           </div>
           <div :style="cardActionsStyle">
             <button 
-              :style="actionBtnStyle" 
+              :style="getEditBtnStyle(index)" 
               @click.stop="editUser(user)" 
               @mouseenter="hoveredAction = 'edit-' + index"
               @mouseleave="hoveredAction = null"
@@ -210,71 +229,72 @@
           </svg>
           {{ user.email }}
         </p>
+
+        <!-- Contact -->
+        <p v-if="user.contact" :style="cardContactStyle">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+          </svg>
+          {{ user.contact }}
+        </p>
         
         <!-- Role Badge -->
-        <div :style="getRoleBadgeStyle(user.role)">
+        <div :style="getRoleBadgeStyle(user.id_role)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7.4-6.3-4.6-6.3 4.6 2.3-7.4-6-4.6h7.6z"/>
           </svg>
-          {{ getRoleLabel(user.role) }}
+          {{ getRoleLabel(user.id_role) }}
         </div>
         
-        <!-- Access Info -->
+        <!-- Access Codes Display -->
         <div :style="accessContainerStyle">
-          <div :style="accessItemStyle" v-if="user.acces.magasins === 'all' || (Array.isArray(user.acces.magasins) && user.acces.magasins.length > 0)">
+          <!-- ALL or ALL_TEST -->
+          <div v-if="userHasAllAccess(user)" :style="allAccessBadgeStyle">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
-            <span>{{ formatAccess(user.acces.magasins, 'magasin') }}</span>
+            <span>{{ getUserAccessCodes(user).includes('ALL_TEST') && !getUserAccessCodes(user).includes('ALL') ? 'Test Utilisateur (ALL_TEST)' : 'Tous les droits (ALL)' }}</span>
           </div>
-          
-          <div :style="accessItemStyle" v-if="user.acces.entrepots === 'all' || (Array.isArray(user.acces.entrepots) && user.acces.entrepots.length > 0)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 8.35V20a2 2 0 01-2 2H4a2 2 0 01-2-2V8.35A2 2 0 013.26 6.5l8-3.2a2 2 0 011.48 0l8 3.2A2 2 0 0122 8.35z"/>
-              <path d="M6 18h12"/>
-              <path d="M6 14h12"/>
-            </svg>
-            <span>{{ formatAccess(user.acces.entrepots, 'entrepôt') }}</span>
+
+          <!-- Individual codes -->
+          <div v-else-if="getUserAccessCodes(user).length > 0" :style="accessCodesWrapperStyle">
+            <div 
+              v-for="code in getUserAccessCodes(user)" 
+              :key="code"
+              :style="getAccessCodeBadgeStyle(code)"
+            >
+              <span :style="accessCodeLabelStyle">{{ code }}</span>
+              <span :style="accessCodeDescStyle">{{ getAccessCodeLabel(code) }}</span>
+            </div>
           </div>
-          
-          <div :style="accessItemStyle" v-if="user.acces.clients">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-            </svg>
-            <span>Clients</span>
-          </div>
-          
-          <div :style="accessItemStyle" v-if="user.acces.fournisseurs">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-            </svg>
-            <span>Fournisseurs</span>
-          </div>
-          
-          <!-- Badge si aucun accès -->
-          <div v-if="!hasAnyAccess(user)" :style="noAccessBadgeStyle">
+
+          <!-- No access -->
+          <div v-else :style="noAccessBadgeStyle">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"/>
               <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
             </svg>
-            <span>Aucun accès défini</span>
+            <span>Aucun acc&egrave;s d&eacute;fini</span>
           </div>
         </div>
 
         <div :style="cardFooterStyle">
           <button 
-            :style="getStatusToggleStyle(user.actif, index)"
+            :style="getStatusToggleStyle(user.statut === 'actif', index)"
             @click.stop="toggleUserStatus(user.id)"
             @mouseenter="hoveredAction = 'status-' + index"
             @mouseleave="hoveredAction = null"
           >
-            <span :style="statusDotStyle(user.actif)"></span>
-            {{ user.actif ? 'Actif' : 'Inactif' }}
+            <span :style="statusDotStyle(user.statut === 'actif')"></span>
+            {{ user.statut === 'actif' ? 'Actif' : 'Inactif' }}
           </button>
           
-          <span :style="lastConnexionStyle" v-if="user.derniere_connexion">
-            Vu {{ formatDate(user.derniere_connexion) }}
+          <span :style="lastConnexionStyle" v-if="user.last_login">
+            Vu {{ formatDate(user.last_login) }}
+          </span>
+          <span :style="dateCreateStyle" v-else-if="user.date_create">
+            Cr&eacute;&eacute; {{ formatDate(user.date_create) }}
           </span>
         </div>
       </div>
@@ -294,7 +314,7 @@
                 </svg>
               </div>
               <h2 :style="modalTitleStyle">{{ editingUser ? 'Modifier l\'Utilisateur' : 'Nouvel Utilisateur' }}</h2>
-              <p :style="modalSubtitleStyle">{{ editingUser ? 'Mettez à jour les informations et les accès' : 'Créez un nouvel utilisateur et définissez ses accès' }}</p>
+              <p :style="modalSubtitleStyle">{{ editingUser ? 'Mettez &agrave; jour les informations et les acc&egrave;s' : 'Cr&eacute;ez un nouvel utilisateur et d&eacute;finissez ses acc&egrave;s' }}</p>
             </div>
             <button :style="closeButtonStyle" @click="closeModal">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -330,7 +350,7 @@
               
               <div :style="formGroupStyle">
                 <label :style="labelStyle">
-                  Prénom <span :style="requiredStyle">*</span>
+                  Pr&eacute;nom <span :style="requiredStyle">*</span>
                 </label>
                 <input 
                   v-model="formData.prenom" 
@@ -357,12 +377,12 @@
               </div>
               
               <div :style="formGroupStyle">
-                <label :style="labelStyle">Téléphone</label>
+                <label :style="labelStyle">Contact</label>
                 <input 
-                  v-model="formData.telephone" 
+                  v-model="formData.contact" 
                   type="tel" 
                   :style="inputStyle"
-                  placeholder="+33 1 23 45 67 89"
+                  placeholder="+225 07 00 00 00 00"
                 />
               </div>
             </div>
@@ -370,149 +390,36 @@
             <div :style="formRowStyle">
               <div :style="formGroupStyle">
                 <label :style="labelStyle">
-                  Mot de passe {{ editingUser ? '' : '*' }}
+                  Mot de passe <span v-if="!editingUser" :style="requiredStyle">*</span>
                 </label>
                 <input 
                   v-model="formData.password" 
                   type="password" 
                   :style="inputStyle"
-                  :placeholder="editingUser ? 'Laisser vide pour ne pas changer' : 'Minimum 6 caractères'"
+                  :placeholder="editingUser ? 'Laisser vide pour ne pas changer' : 'Minimum 6 caract&egrave;res'"
                   :required="!editingUser"
                 />
               </div>
               
               <div :style="formGroupStyle">
                 <label :style="labelStyle">
-                  Rôle <span :style="requiredStyle">*</span>
+                  R&ocirc;le <span :style="requiredStyle">*</span>
                 </label>
-                <select v-model="formData.role" :style="inputStyle" required>
-                  <option value="vendeur">Vendeur</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Administrateur</option>
+                <select v-model="formData.id_role" :style="inputStyle" required>
+                  <option :value="3">Vendeur</option>
+                  <option :value="2">Manager</option>
+                  <option :value="1">Administrateur</option>
                 </select>
               </div>
             </div>
             
-            <!-- Accès et permissions -->
+            <!-- Acces et permissions -->
             <div :style="sectionTitleStyle">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                 <path d="M7 11V7a5 5 0 0110 0v4"/>
               </svg>
-              Accès et permissions
-            </div>
-
-            <!-- Magasins -->
-            <div :style="formGroupStyle">
-              <label :style="labelStyle">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-                </svg>
-                Accès aux magasins
-              </label>
-              <div :style="accessOptionsStyle">
-                <label :style="checkboxLabelStyle">
-                  <input 
-                    type="checkbox" 
-                    :checked="formData.acces_magasins === 'all'"
-                    @change="toggleAllMagasins"
-                    :style="checkboxStyle"
-                  />
-                  <span>Tous les magasins</span>
-                </label>
-              </div>
-              <div :style="checkboxGridStyle" v-if="formData.acces_magasins !== 'all'">
-                <label 
-                  v-for="magasin in availableMagasins" 
-                  :key="magasin.id"
-                  :style="checkboxItemStyle"
-                >
-                  <input 
-                    type="checkbox" 
-                    :value="magasin.id"
-                    v-model="formData.acces_magasins"
-                    :style="checkboxStyle"
-                  />
-                  <span>{{ magasin.nom }}</span>
-                </label>
-              </div>
-            </div>
-
-            <!-- Entrepôts -->
-            <div :style="formGroupStyle">
-              <label :style="labelStyle">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 8.35V20a2 2 0 01-2 2H4a2 2 0 01-2-2V8.35A2 2 0 013.26 6.5l8-3.2a2 2 0 011.48 0l8 3.2A2 2 0 0122 8.35z"/>
-                  <path d="M6 18h12"/>
-                  <path d="M6 14h12"/>
-                </svg>
-                Accès aux entrepôts
-              </label>
-              <div :style="accessOptionsStyle">
-                <label :style="checkboxLabelStyle">
-                  <input 
-                    type="checkbox" 
-                    :checked="formData.acces_entrepots === 'all'"
-                    @change="toggleAllEntrepots"
-                    :style="checkboxStyle"
-                  />
-                  <span>Tous les entrepôts</span>
-                </label>
-              </div>
-              <div :style="checkboxGridStyle" v-if="formData.acces_entrepots !== 'all'">
-                <label 
-                  v-for="entrepot in availableEntrepots" 
-                  :key="entrepot.id"
-                  :style="checkboxItemStyle"
-                >
-                  <input 
-                    type="checkbox" 
-                    :value="entrepot.id"
-                    v-model="formData.acces_entrepots"
-                    :style="checkboxStyle"
-                  />
-                  <div :style="entrepotLabelContainerStyle">
-                    <span :style="entrepotNameStyle">{{ entrepot.nom }}</span>
-                    <span :style="entrepotCodeStyle">{{ entrepot.code }}</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <!-- Autres accès -->
-            <div :style="formRowStyle">
-              <div :style="formGroupStyle">
-                <label :style="checkboxLabelStyle">
-                  <input type="checkbox" v-model="formData.acces_clients" :style="checkboxStyle" />
-                  <span :style="checkboxTextStyle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-                      <circle cx="9" cy="7" r="4"/>
-                    </svg>
-                    Accès Clients
-                  </span>
-                </label>
-              </div>
-              
-              <div :style="formGroupStyle">
-                <label :style="checkboxLabelStyle">
-                  <input type="checkbox" v-model="formData.acces_fournisseurs" :style="checkboxStyle" />
-                  <span :style="checkboxTextStyle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                    </svg>
-                    Accès Fournisseurs
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <!-- Permissions (codes access) -->
-            <div :style="sectionTitleStyle">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7.4-6.3-4.6-6.3 4.6 2.3-7.4-6-4.6h7.6z"/>
-              </svg>
-              Permissions (codes)
+              Droits d'acc&egrave;s (codes)
             </div>
 
             <div :style="formGroupStyle">
@@ -527,119 +434,26 @@
                 </span>
               </label>
               <p style="font-size:12px;color:#64748b;margin-top:4px;">
-                Cochez cette case pour donner accès à tous les modules. (ALL_TEST est réservé à l'inscription uniquement)
+                Cochez cette case pour donner acc&egrave;s &agrave; tous les modules.
               </p>
             </div>
 
             <div v-if="!formData.permissions_all" :style="checkboxGridStyle">
-              <!-- Ligne 1 : clients / fournisseurs / commandes / caisse -->
-              <label :style="checkboxItemStyle">
+              <label 
+                v-for="perm in PERMISSION_LIST"
+                :key="perm.code"
+                :style="getPermissionItemStyle(perm.code)"
+              >
                 <input
                   type="checkbox"
-                  :value="PERMISSION_CODES.GCL"
+                  :value="perm.code"
                   v-model="formData.permissions_codes"
                   :style="checkboxStyle"
                 />
-                <span :style="checkboxTextStyle">Gestion Clients (GCL)</span>
-              </label>
-
-              <label :style="checkboxItemStyle">
-                <input
-                  type="checkbox"
-                  :value="PERMISSION_CODES.GF"
-                  v-model="formData.permissions_codes"
-                  :style="checkboxStyle"
-                />
-                <span :style="checkboxTextStyle">Gestion Fournisseurs (GF)</span>
-              </label>
-
-              <label :style="checkboxItemStyle">
-                <input
-                  type="checkbox"
-                  :value="PERMISSION_CODES.GCM"
-                  v-model="formData.permissions_codes"
-                  :style="checkboxStyle"
-                />
-                <span :style="checkboxTextStyle">Gestion Commandes (GCM)</span>
-              </label>
-
-              <label :style="checkboxItemStyle">
-                <input
-                  type="checkbox"
-                  :value="PERMISSION_CODES.GCS"
-                  v-model="formData.permissions_codes"
-                  :style="checkboxStyle"
-                />
-                <span :style="checkboxTextStyle">Gestion Caisse (GCS)</span>
-              </label>
-
-              <!-- Ligne 2 : produits / stock / ventes -->
-              <label :style="checkboxItemStyle">
-                <input
-                  type="checkbox"
-                  :value="PERMISSION_CODES.GP"
-                  v-model="formData.permissions_codes"
-                  :style="checkboxStyle"
-                />
-                <span :style="checkboxTextStyle">Gestion Produits (GP)</span>
-              </label>
-
-              <label :style="checkboxItemStyle">
-                <input
-                  type="checkbox"
-                  :value="PERMISSION_CODES.GS"
-                  v-model="formData.permissions_codes"
-                  :style="checkboxStyle"
-                />
-                <span :style="checkboxTextStyle">Gestion Stock (GS)</span>
-              </label>
-
-              <label :style="checkboxItemStyle">
-                <input
-                  type="checkbox"
-                  :value="PERMISSION_CODES.GV"
-                  v-model="formData.permissions_codes"
-                  :style="checkboxStyle"
-                />
-                <span :style="checkboxTextStyle">Gestion Ventes (GV)</span>
-              </label>
-
-              <!-- Ligne 3 : utilisateurs / comptabilité / entrepôts -->
-              <label :style="checkboxItemStyle">
-                <input
-                  type="checkbox"
-                  :value="PERMISSION_CODES.GU"
-                  v-model="formData.permissions_codes"
-                  :style="checkboxStyle"
-                />
-                <span :style="checkboxTextStyle">Gestion Utilisateurs (GU)</span>
-              </label>
-
-              <label :style="checkboxItemStyle">
-                <input
-                  type="checkbox"
-                  :value="PERMISSION_CODES.GC"
-                  v-model="formData.permissions_codes"
-                  :style="checkboxStyle"
-                />
-                <span :style="checkboxTextStyle">Comptabilité (GC)</span>
-              </label>
-
-              <label :style="checkboxItemStyle">
-                <input
-                  type="checkbox"
-                  :value="PERMISSION_CODES.GT"
-                  v-model="formData.permissions_codes"
-                  :style="checkboxStyle"
-                />
-                <span :style="checkboxTextStyle">Gestion Entrepôts (GT)</span>
-              </label>
-            </div>
-
-            <div :style="formGroupStyle">
-              <label :style="checkboxLabelStyle">
-                <input type="checkbox" v-model="formData.actif" :style="checkboxStyle" />
-                <span :style="checkboxTextStyle">Compte actif</span>
+                <div :style="permissionLabelWrapperStyle">
+                  <span :style="permissionCodeStyle">{{ perm.code }}</span>
+                  <span :style="permissionNameStyle">{{ perm.label }}</span>
+                </div>
               </label>
             </div>
             
@@ -648,12 +462,13 @@
                 Annuler
               </button>
               <button type="submit" :style="submitButtonStyle" :disabled="saving">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg v-if="!saving" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
                   <polyline points="17 21 17 13 7 13 7 21"/>
                   <polyline points="7 3 7 8 15 8"/>
                 </svg>
-                {{ saving ? 'Enregistrement...' : (editingUser ? 'Enregistrer' : 'Créer') }}
+                <div v-else :style="btnSpinnerStyle"></div>
+                {{ saving ? 'Enregistrement...' : (editingUser ? 'Enregistrer' : 'Cr&eacute;er') }}
               </button>
             </div>
           </form>
@@ -666,11 +481,84 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { getUsers, addUser, updateUser, adeleteUser as apiDeleteUser, toggleUserStatus as apiToggleStatus } from '../services/api'
 import SidebarLayout from './SidebarLayout.vue'
-import { PERMISSION_CODES } from '../utils/permissions.js'
 
-const API_BASE_URL = 'https://sogetrag.com/apistok'
+const API_BASE_URL = 'https://aliadjame.com/api'
 
+// ─── Access codes mapping ───────────────────────────────────────────
+const ACCESS_CODES_MAP = {
+  GP:  'Gestion produit',
+  GS:  'Gestion stock',
+  GV:  'Gestion vente',
+  GU:  'Gestion utilisateur',
+  GC:  'Gestion comptabilit\u00e9',
+  GT:  'Gestion entrep\u00f4t',
+  GCM: 'Gestion commandes',
+  GF:  'Gestion fournisseur',
+  GCL: 'Gestion clients',
+  GCS: 'Gestion caisse',
+  ALL_TEST: 'Test Utilisateur',
+  ALL: 'Tous les droits'
+}
+
+// Icons for filter buttons (SVG path data)
+const ACCESS_ICONS = {
+  GP:  'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+  GS:  'M20 12V8H6a2 2 0 01-2-2c0-1.1.9-2 2-2h12v4M4 6v12a2 2 0 002 2h14',
+  GV:  'M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0',
+  GU:  'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100-8 4 4 0 000 8',
+  GC:  'M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
+  GT:  'M22 8.35V20a2 2 0 01-2 2H4a2 2 0 01-2-2V8.35A2 2 0 013.26 6.5l8-3.2a2 2 0 011.48 0l8 3.2A2 2 0 0122 8.35z',
+  GCM: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
+  GF:  'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
+  GCL: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+  GCS: 'M2 7h20l-1.5 9a2 2 0 01-2 2H5.5a2 2 0 01-2-2L2 7zM16 3l2 4M8 3L6 7',
+}
+
+// List for filter buttons (excluding ALL and ALL_TEST)
+const ACCESS_CODES_LIST = [
+  { code: 'GP',  short: 'Produits',     icon: ACCESS_ICONS.GP },
+  { code: 'GS',  short: 'Stock',        icon: ACCESS_ICONS.GS },
+  { code: 'GV',  short: 'Ventes',       icon: ACCESS_ICONS.GV },
+  { code: 'GU',  short: 'Utilisateurs', icon: ACCESS_ICONS.GU },
+  { code: 'GC',  short: 'Comptabilit\u00e9', icon: ACCESS_ICONS.GC },
+  { code: 'GT',  short: 'Entrep\u00f4ts',    icon: ACCESS_ICONS.GT },
+  { code: 'GCM', short: 'Commandes',    icon: ACCESS_ICONS.GCM },
+  { code: 'GF',  short: 'Fournisseurs', icon: ACCESS_ICONS.GF },
+  { code: 'GCL', short: 'Clients',      icon: ACCESS_ICONS.GCL },
+  { code: 'GCS', short: 'Caisse',       icon: ACCESS_ICONS.GCS },
+]
+
+// Permission list for the modal form
+const PERMISSION_LIST = [
+  { code: 'GP',  label: 'Gestion Produits' },
+  { code: 'GS',  label: 'Gestion Stock' },
+  { code: 'GV',  label: 'Gestion Ventes' },
+  { code: 'GU',  label: 'Gestion Utilisateurs' },
+  { code: 'GC',  label: 'Comptabilit\u00e9' },
+  { code: 'GT',  label: 'Gestion Entrep\u00f4ts' },
+  { code: 'GCM', label: 'Gestion Commandes' },
+  { code: 'GF',  label: 'Gestion Fournisseurs' },
+  { code: 'GCL', label: 'Gestion Clients' },
+  { code: 'GCS', label: 'Gestion Caisse' },
+]
+
+// Access code badge colors
+const ACCESS_CODE_COLORS = {
+  GP:  { bg: '#fef3c7', text: '#92400e', border: '#fde68a' },
+  GS:  { bg: '#dcfce7', text: '#166534', border: '#bbf7d0' },
+  GV:  { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe' },
+  GU:  { bg: '#f3e8ff', text: '#6b21a8', border: '#e9d5ff' },
+  GC:  { bg: '#fce7f3', text: '#9d174d', border: '#fbcfe8' },
+  GT:  { bg: '#e0e7ff', text: '#3730a3', border: '#c7d2fe' },
+  GCM: { bg: '#fed7aa', text: '#9a3412', border: '#fdba74' },
+  GF:  { bg: '#ccfbf1', text: '#115e59', border: '#99f6e4' },
+  GCL: { bg: '#ede9fe', text: '#5b21b6', border: '#ddd6fe' },
+  GCS: { bg: '#fef9c3', text: '#854d0e', border: '#fef08a' },
+}
+
+// ─── State ──────────────────────────────────────────────────────────
 const hoveredCard = ref(null)
 const hoveredAction = ref(null)
 const addHovered = ref(false)
@@ -680,251 +568,180 @@ const loading = ref(false)
 const saving = ref(false)
 const error = ref(null)
 const activeFilter = ref('all')
+const searchQuery = ref('')
 
 const users = ref([])
-const availableMagasins = ref([])
-const availableEntrepots = ref([])
-const stats = ref({
-  total: 0,
-  actifs: 0,
-  inactifs: 0,
-  roles: []
-})
 
 const formData = reactive({
   nom: '',
   prenom: '',
   email: '',
-  telephone: '',
+  contact: '',
   password: '',
-  role: 'vendeur',
-  acces_magasins: [],
-  acces_entrepots: [],
-  acces_clients: false,
-  acces_fournisseurs: false,
-  actif: true,
-  // Permissions (codes de la colonne access en base)
-  permissions_all: false,       // coche "Tous les droits (ALL)"
-  permissions_codes: []         // ex: ['GCL', 'GF', 'GT', ...]
+  id_role: 3,
+  statut_actif: true,
+  permissions_all: false,
+  permissions_codes: []
 })
 
-// Computed
+// ─── Helpers ────────────────────────────────────────────────────────
+const getUserAccessCodes = (user) => {
+  if (!user.access) return []
+  try {
+    const parsed = typeof user.access === 'string' ? JSON.parse(user.access) : user.access
+    return Array.isArray(parsed) ? parsed : []
+  } catch (e) {
+    return []
+  }
+}
+
+const userHasAllAccess = (user) => {
+  const codes = getUserAccessCodes(user)
+  return codes.includes('ALL') || codes.includes('ALL_TEST')
+}
+
+const userHasCode = (user, code) => {
+  const codes = getUserAccessCodes(user)
+  return codes.includes('ALL') || codes.includes(code)
+}
+
+const getAccessCodeLabel = (code) => ACCESS_CODES_MAP[code] || code
+
+// ─── Computed ───────────────────────────────────────────────────────
 const filteredUsers = computed(() => {
-  if (activeFilter.value === 'all') return users.value
-  
-  return users.value.filter(user => {
-    switch (activeFilter.value) {
-      case 'magasins':
-        return user.acces.magasins === 'all' || (Array.isArray(user.acces.magasins) && user.acces.magasins.length > 0)
-      case 'entrepots':
-        return user.acces.entrepots === 'all' || (Array.isArray(user.acces.entrepots) && user.acces.entrepots.length > 0)
-      case 'clients':
-        return user.acces.clients === true
-      case 'fournisseurs':
-        return user.acces.fournisseurs === true
-      default:
-        return true
-    }
-  })
+  let result = users.value
+
+  // Filter by access code
+  if (activeFilter.value !== 'all') {
+    result = result.filter(user => userHasCode(user, activeFilter.value))
+  }
+
+  // Filter by search query
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.trim().toLowerCase()
+    result = result.filter(user => {
+      const fullName = `${user.nom} ${user.prenom}`.toLowerCase()
+      const email = (user.email || '').toLowerCase()
+      const contact = (user.contact || '').toLowerCase()
+      return fullName.includes(q) || email.includes(q) || contact.includes(q)
+    })
+  }
+
+  return result
 })
-const getRoleCount = (role) => {
-  const roleData = stats.value.roles.find(r => r.role === role)
-  return roleData ? roleData.count : 0
+
+const countByStatut = (statut) => {
+  return users.value.filter(u => u.statut === statut).length
+}
+
+const countByRole = (roleId) => {
+  return users.value.filter(u => u.id_role === roleId).length
 }
 
 const getUsersWithAccess = () => {
-  return users.value.filter(user => hasAnyAccess(user)).length
+  return users.value.filter(user => getUserAccessCodes(user).length > 0).length
 }
 
-// Methods
+// ─── Methods ────────────────────────────────────────────────────────
 const getInitials = (user) => {
-  return `${user.nom.charAt(0)}${user.prenom.charAt(0)}`.toUpperCase()
+  return `${(user.nom || '').charAt(0)}${(user.prenom || '').charAt(0)}`.toUpperCase()
 }
 
-const getRoleLabel = (role) => {
+const getRoleLabel = (id_role) => {
   const labels = {
-    'admin': 'Administrateur',
-    'manager': 'Manager',
-    'vendeur': 'Vendeur'
+    1: 'Administrateur',
+    2: 'Manager',
+    3: 'Vendeur'
   }
-  return labels[role] || role
-}
-
-const formatAccess = (access, type) => {
-  if (access === 'all') return `Tous les ${type}s`
-  if (Array.isArray(access)) return `${access.length} ${type}${access.length > 1 ? 's' : ''}`
-  return ''
-}
-
-const hasAnyAccess = (user) => {
-  const hasMagasins = user.acces.magasins === 'all' || (Array.isArray(user.acces.magasins) && user.acces.magasins.length > 0)
-  const hasEntrepots = user.acces.entrepots === 'all' || (Array.isArray(user.acces.entrepots) && user.acces.entrepots.length > 0)
-  const hasClients = user.acces.clients
-  const hasFournisseurs = user.acces.fournisseurs
-  
-  return hasMagasins || hasEntrepots || hasClients || hasFournisseurs
+  return labels[id_role] || 'Inconnu'
 }
 
 const formatDate = (date) => {
+  if (!date) return ''
   const d = new Date(date)
   const now = new Date()
   const diff = Math.floor((now - d) / 1000)
   
-  if (diff < 60) return 'à l\'instant'
+  if (diff < 60) return '\u00e0 l\'instant'
   if (diff < 3600) return `il y a ${Math.floor(diff / 60)}m`
   if (diff < 86400) return `il y a ${Math.floor(diff / 3600)}h`
-  return `il y a ${Math.floor(diff / 86400)}j`
+  if (diff < 604800) return `il y a ${Math.floor(diff / 86400)}j`
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-// API Functions
+// ─── API Functions ──────────────────────────────────────────────────
 const loadUsers = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await fetch(`${API_BASE_URL}/api_users.php?action=list&_=${Math.random()}`)
-    const data = await response.json()
-    
-    if (data.success) {
-      users.value = data.data
-    } else {
-      error.value = data.error || 'Erreur lors du chargement des utilisateurs'
-    }
+    const response = await getUsers()        // ← Axios + token auto
+    users.value = response.data.data
   } catch (err) {
-    error.value = 'Impossible de se connecter au serveur'
-    console.error('Erreur:', err)
+    error.value = err.response?.data?.error || 'Impossible de se connecter'
   } finally {
     loading.value = false
   }
 }
 
-const loadStats = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api_users.php?action=stats&_=${Math.random()}`)
-    const data = await response.json()
-    
-    if (data.success) {
-      stats.value = data.data
-    }
-  } catch (err) {
-    console.error('Erreur chargement stats:', err)
-  }
-}
-
-const loadMagasins = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api_users.php?action=magasins&_=${Math.random()}`)
-    const data = await response.json()
-    
-    if (data.success) {
-      availableMagasins.value = data.data
-    }
-  } catch (err) {
-    console.error('Erreur chargement magasins:', err)
-  }
-}
-
-const loadEntrepots = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api_users.php?action=entrepots&_=${Math.random()}`)
-    const data = await response.json()
-    
-    if (data.success) {
-      availableEntrepots.value = data.data
-    }
-  } catch (err) {
-    console.error('Erreur chargement entrepôts:', err)
-  }
-}
-
+// ─── API Functions ──────────────────────────────────────────────────
 const saveUser = async () => {
   saving.value = true
   try {
-    const url = editingUser.value 
-      ? `${API_BASE_URL}/api_users.php?action=update`
-      : `${API_BASE_URL}/api_users.php?action=add`
-    
-    // Construire le tableau des permissions (colonne access en base)
-    let accessCodes = []
+    // Construire le tableau des permissions
+    let accessCodes = formData.permissions_all ? ['ALL'] : [...formData.permissions_codes];
 
-    if (formData.permissions_all) {
-      // Tous les droits -> ALL (ALL_TEST est réservé à l'inscription)
-      accessCodes = [PERMISSION_CODES.ALL]
-    } else {
-      // Codes cochés manuellement
-      accessCodes = [...formData.permissions_codes]
-
-      // S'assurer que les switches d'accès sont cohérents avec les codes
-      if (formData.acces_clients && !accessCodes.includes(PERMISSION_CODES.GCL)) {
-        accessCodes.push(PERMISSION_CODES.GCL)
-      }
-      if (formData.acces_fournisseurs && !accessCodes.includes(PERMISSION_CODES.GF)) {
-        accessCodes.push(PERMISSION_CODES.GF)
-      }
-      if (formData.acces_entrepots === 'all' && !accessCodes.includes(PERMISSION_CODES.GT)) {
-        accessCodes.push(PERMISSION_CODES.GT)
-      }
-      if (formData.acces_magasins === 'all') {
-        // GS, GV, GP donnent accès aux magasins
-        ;[PERMISSION_CODES.GS, PERMISSION_CODES.GV, PERMISSION_CODES.GP].forEach(code => {
-          if (!accessCodes.includes(code)) accessCodes.push(code)
-        })
-      }
-    }
-
-    const basePayload = editingUser.value
-      ? { ...formData, id: editingUser.value.id }
-      : { ...formData }
-
-    // Ajouter la colonne access sous forme de JSON (attendue par api_auth.php)
     const payload = {
-      ...basePayload,
+      nom: formData.nom,
+      prenom: formData.prenom,
+      email: formData.email,
+      contact: formData.contact,
+      password: formData.password,
+      id_role: formData.id_role,
+      statut: formData.statut_actif ? 'actif' : 'inactif',
       access: JSON.stringify(accessCodes)
+    };
+
+    let response;
+    if (editingUser.value) {
+      // Ajoute l'ID pour la modification
+      payload.id = editingUser.value.id;
+      response = await updateUser(payload);   // ← Utilise updateUser de api.js
+    } else {
+      response = await addUser(payload);      // ← Utilise addUser de api.js
     }
 
-    const response = await fetch(url, {
-      method: editingUser.value ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-    
-    const data = await response.json()
-    
-    if (data.success) {
-      await loadUsers()
-      await loadStats()
-      closeModal()
+    // Axios renvoie directement la data
+    if (response.data.success) {
+      await loadUsers();
+      closeModal();
     } else {
-      alert(data.error || 'Erreur lors de l\'enregistrement')
+      alert(response.data.error || "Erreur lors de l'enregistrement");
     }
+
   } catch (err) {
-    alert('Erreur de connexion au serveur')
-    console.error('Erreur:', err)
+    console.error("Erreur:", err);
+    alert("Erreur de connexion au serveur");
   } finally {
-    saving.value = false
+    saving.value = false;
   }
-}
+};
 
 const deleteUser = async (id) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return
-  
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
+
   try {
-    const response = await fetch(`${API_BASE_URL}/api_users.php?action=delete&id=${id}`, {
-      method: 'DELETE'
-    })
-    
-    const data = await response.json()
-    
-    if (data.success) {
-      await loadUsers()
-      await loadStats()
+    const response = await adeleteUser(id);  // ← Utilise deleteUser de api.js
+    // Axios renvoie la réponse sous response.data
+    if (response.data.success) {
+      await loadUsers();
     } else {
-      alert(data.error || 'Erreur lors de la suppression')
+      alert(response.data.error || 'Erreur lors de la suppression');
     }
   } catch (err) {
-    alert('Erreur de connexion au serveur')
-    console.error('Erreur:', err)
+    console.error('Erreur:', err);
+    alert('Erreur de connexion au serveur');
   }
-}
+};
 
 const toggleUserStatus = async (id) => {
   try {
@@ -938,7 +755,6 @@ const toggleUserStatus = async (id) => {
     
     if (data.success) {
       await loadUsers()
-      await loadStats()
     } else {
       alert(data.error || 'Erreur lors du changement de statut')
     }
@@ -959,33 +775,20 @@ const editUser = (user) => {
   formData.nom = user.nom
   formData.prenom = user.prenom
   formData.email = user.email
-  formData.telephone = user.telephone
+  formData.contact = user.contact || ''
   formData.password = ''
-  formData.role = user.role
-  formData.acces_magasins = user.acces.magasins === 'all' ? 'all' : (user.acces.magasins || [])
-  formData.acces_entrepots = user.acces.entrepots === 'all' ? 'all' : (user.acces.entrepots || [])
-  formData.acces_clients = user.acces.clients
-  formData.acces_fournisseurs = user.acces.fournisseurs
-  formData.actif = Boolean(user.actif)
+  formData.id_role = user.id_role
+  formData.statut_actif = user.statut === 'actif'
 
-   // Initialiser les permissions à partir de user.access si présent
-   formData.permissions_all = false
-   formData.permissions_codes = []
-   if (user.access) {
-     try {
-       const accessArray = typeof user.access === 'string' ? JSON.parse(user.access) : user.access
-       if (Array.isArray(accessArray)) {
-         // Si ALL ou ALL_TEST présent, on considère que l'utilisateur a tous les droits
-         if (accessArray.includes(PERMISSION_CODES.ALL) || accessArray.includes(PERMISSION_CODES.ALL_TEST)) {
-           formData.permissions_all = true
-         }
-         // Garder uniquement les codes "simples" (on ne repropose pas ALL_TEST dans le formulaire)
-         formData.permissions_codes = accessArray.filter(code => ![PERMISSION_CODES.ALL, PERMISSION_CODES.ALL_TEST].includes(code))
-       }
-     } catch (e) {
-       console.warn('Impossible de parser user.access', e)
-     }
-   }
+  // Parse access codes
+  formData.permissions_all = false
+  formData.permissions_codes = []
+  const codes = getUserAccessCodes(user)
+  if (codes.includes('ALL') || codes.includes('ALL_TEST')) {
+    formData.permissions_all = true
+  }
+  formData.permissions_codes = codes.filter(c => c !== 'ALL' && c !== 'ALL_TEST')
+
   showModal.value = true
 }
 
@@ -999,35 +802,20 @@ const resetForm = () => {
   formData.nom = ''
   formData.prenom = ''
   formData.email = ''
-  formData.telephone = ''
+  formData.contact = ''
   formData.password = ''
-  formData.role = 'vendeur'
-  formData.acces_magasins = []
-  formData.acces_entrepots = []
-  formData.acces_clients = false
-  formData.acces_fournisseurs = false
-  formData.actif = true
+  formData.id_role = 3
+  formData.statut_actif = true
   formData.permissions_all = false
   formData.permissions_codes = []
-}
-
-const toggleAllMagasins = (e) => {
-  formData.acces_magasins = e.target.checked ? 'all' : []
-}
-
-const toggleAllEntrepots = (e) => {
-  formData.acces_entrepots = e.target.checked ? 'all' : []
 }
 
 // Load data on mount
 onMounted(() => {
   loadUsers()
-  loadStats()
-  loadMagasins()
-  loadEntrepots()
 })
 
-// Styles (similar to Magasins page)
+// ─── Styles ─────────────────────────────────────────────────────────
 const headerStyle = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -1103,14 +891,14 @@ const getFilterButtonStyle = (filter) => ({
   display: 'flex',
   alignItems: 'center',
   gap: '6px',
-  padding: '8px 16px',
+  padding: '8px 14px',
   borderRadius: '10px',
   border: activeFilter.value === filter ? 'none' : '1px solid #e2e8f0',
   background: activeFilter.value === filter 
     ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'
     : 'white',
   color: activeFilter.value === filter ? 'white' : '#64748b',
-  fontSize: '13px',
+  fontSize: '12px',
   fontWeight: '600',
   cursor: 'pointer',
   transition: 'all 0.2s',
@@ -1155,7 +943,7 @@ const statsOverviewStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
   gap: '16px',
-  marginBottom: '32px'
+  marginBottom: '24px'
 }
 
 const statCardStyle = {
@@ -1196,6 +984,54 @@ const statLabelStyle = {
   marginTop: '2px'
 }
 
+// Search bar styles
+const searchBarContainerStyle = {
+  marginBottom: '24px'
+}
+
+const searchInputWrapperStyle = {
+  position: 'relative',
+  display: 'flex',
+  alignItems: 'center'
+}
+
+const searchIconStyle = {
+  position: 'absolute',
+  left: '16px',
+  color: '#94a3b8',
+  pointerEvents: 'none'
+}
+
+const searchInputStyle = {
+  width: '100%',
+  padding: '14px 44px 14px 48px',
+  border: '1px solid #e2e8f0',
+  borderRadius: '14px',
+  fontSize: '14px',
+  fontWeight: '500',
+  color: '#1e293b',
+  background: 'white',
+  boxSizing: 'border-box',
+  transition: 'all 0.2s',
+  outline: 'none'
+}
+
+const searchClearBtnStyle = {
+  position: 'absolute',
+  right: '12px',
+  width: '28px',
+  height: '28px',
+  borderRadius: '8px',
+  border: 'none',
+  background: '#f1f5f9',
+  color: '#64748b',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'all 0.2s'
+}
+
 const loadingStyle = {
   textAlign: 'center',
   padding: '60px 20px',
@@ -1228,6 +1064,25 @@ const retryButtonStyle = {
   cursor: 'pointer',
   fontSize: '14px',
   fontWeight: '600'
+}
+
+const emptyStateStyle = {
+  textAlign: 'center',
+  padding: '80px 20px',
+  color: '#94a3b8'
+}
+
+const emptyStateTitleStyle = {
+  fontSize: '18px',
+  fontWeight: '600',
+  color: '#475569',
+  margin: '16px 0 8px'
+}
+
+const emptyStateSubStyle = {
+  fontSize: '14px',
+  color: '#94a3b8',
+  margin: '0'
 }
 
 const gridStyle = {
@@ -1286,8 +1141,17 @@ const getAvatarStyle = (user, index) => {
     color: hoveredCard.value === index ? 'white' : color,
     transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
     transform: hoveredCard.value === index ? 'rotate(-5deg) scale(1.05)' : 'rotate(0deg) scale(1)',
-    boxShadow: hoveredCard.value === index ? `0 8px 20px ${color}40` : 'none'
+    boxShadow: hoveredCard.value === index ? `0 8px 20px ${color}40` : 'none',
+    overflow: 'hidden',
+    flexShrink: 0
   }
+}
+
+const avatarImgStyle = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  borderRadius: '16px'
 }
 
 const cardActionsStyle = {
@@ -1309,6 +1173,13 @@ const actionBtnStyle = {
   transition: 'all 0.2s'
 }
 
+const getEditBtnStyle = (index) => ({
+  ...actionBtnStyle,
+  color: hoveredAction.value === 'edit-' + index ? '#3b82f6' : '#64748b',
+  backgroundColor: hoveredAction.value === 'edit-' + index ? '#eff6ff' : 'white',
+  borderColor: hoveredAction.value === 'edit-' + index ? '#bfdbfe' : '#e2e8f0'
+})
+
 const getDeleteBtnStyle = (index) => ({
   ...actionBtnStyle,
   color: hoveredAction.value === 'delete-' + index ? '#ef4444' : '#64748b',
@@ -1327,6 +1198,16 @@ const cardTitleStyle = {
 const cardEmailStyle = {
   fontSize: '14px',
   color: '#64748b',
+  margin: '0 0 6px 0',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  fontWeight: '500'
+}
+
+const cardContactStyle = {
+  fontSize: '13px',
+  color: '#94a3b8',
   margin: '0 0 16px 0',
   display: 'flex',
   alignItems: 'center',
@@ -1334,13 +1215,13 @@ const cardEmailStyle = {
   fontWeight: '500'
 }
 
-const getRoleBadgeStyle = (role) => {
+const getRoleBadgeStyle = (id_role) => {
   const colors = {
-    'admin': { bg: '#fef3c7', text: '#92400e', border: '#fde68a' },
-    'manager': { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe' },
-    'vendeur': { bg: '#f3e8ff', text: '#6b21a8', border: '#e9d5ff' }
+    1: { bg: '#fef3c7', text: '#92400e', border: '#fde68a' },
+    2: { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe' },
+    3: { bg: '#f3e8ff', text: '#6b21a8', border: '#e9d5ff' }
   }
-  const color = colors[role] || colors.vendeur
+  const color = colors[id_role] || colors[3]
   
   return {
     display: 'inline-flex',
@@ -1368,13 +1249,50 @@ const accessContainerStyle = {
   marginBottom: '16px'
 }
 
-const accessItemStyle = {
+const allAccessBadgeStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
+  padding: '10px 14px',
+  background: 'linear-gradient(135deg, #dcfce7, #d1fae5)',
+  border: '1px solid #86efac',
+  borderRadius: '10px',
   fontSize: '13px',
-  color: '#64748b',
-  fontWeight: '500'
+  color: '#166534',
+  fontWeight: '600'
+}
+
+const accessCodesWrapperStyle = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '6px'
+}
+
+const getAccessCodeBadgeStyle = (code) => {
+  const color = ACCESS_CODE_COLORS[code] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' }
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '4px 10px',
+    borderRadius: '8px',
+    fontSize: '11px',
+    fontWeight: '600',
+    backgroundColor: color.bg,
+    color: color.text,
+    border: `1px solid ${color.border}`
+  }
+}
+
+const accessCodeLabelStyle = {
+  fontWeight: '700',
+  fontSize: '11px'
+}
+
+const accessCodeDescStyle = {
+  fontWeight: '500',
+  fontSize: '10px',
+  opacity: '0.8'
 }
 
 const noAccessBadgeStyle = {
@@ -1392,31 +1310,13 @@ const noAccessBadgeStyle = {
   justifyContent: 'center'
 }
 
-const entrepotLabelContainerStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '2px'
-}
-
-const entrepotNameStyle = {
-  fontSize: '14px',
-  fontWeight: '500',
-  color: '#334155'
-}
-
-const entrepotCodeStyle = {
-  fontSize: '11px',
-  fontWeight: '500',
-  color: '#94a3b8'
-}
-
 const cardFooterStyle = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center'
 }
 
-const getStatusToggleStyle = (actif, index) => ({
+const getStatusToggleStyle = (isActif, index) => ({
   display: 'inline-flex',
   alignItems: 'center',
   gap: '6px',
@@ -1424,25 +1324,32 @@ const getStatusToggleStyle = (actif, index) => ({
   borderRadius: '20px',
   fontSize: '13px',
   fontWeight: '600',
-  backgroundColor: actif ? '#dcfce7' : '#fee2e2',
-  color: actif ? '#166534' : '#991b1b',
+  backgroundColor: isActif ? '#dcfce7' : '#fee2e2',
+  color: isActif ? '#166534' : '#991b1b',
   border: 'none',
   cursor: 'pointer',
   transition: 'all 0.2s',
   letterSpacing: '0.01em'
 })
 
-const statusDotStyle = (actif) => ({
+const statusDotStyle = (isActif) => ({
   width: '6px',
   height: '6px',
   borderRadius: '50%',
-  backgroundColor: actif ? '#22c55e' : '#ef4444'
+  backgroundColor: isActif ? '#22c55e' : '#ef4444'
 })
 
 const lastConnexionStyle = {
   fontSize: '12px',
   color: '#94a3b8',
   fontWeight: '500'
+}
+
+const dateCreateStyle = {
+  fontSize: '12px',
+  color: '#cbd5e1',
+  fontWeight: '500',
+  fontStyle: 'italic'
 }
 
 // Modal styles
@@ -1572,10 +1479,6 @@ const inputStyle = {
   color: '#1e293b'
 }
 
-const accessOptionsStyle = {
-  marginBottom: '12px'
-}
-
 const checkboxLabelStyle = {
   display: 'flex',
   alignItems: 'center',
@@ -1604,21 +1507,48 @@ const checkboxTextStyle = {
 
 const checkboxGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-  gap: '12px',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+  gap: '10px',
   padding: '16px',
   background: '#f8fafc',
   borderRadius: '12px'
 }
 
-const checkboxItemStyle = {
+const getPermissionItemStyle = (code) => {
+  const color = ACCESS_CODE_COLORS[code] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' }
+  const isSelected = formData.permissions_codes.includes(code)
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    fontSize: '13px',
+    backgroundColor: isSelected ? color.bg : 'white',
+    border: `1px solid ${isSelected ? color.border : '#e2e8f0'}`,
+    color: isSelected ? color.text : '#475569',
+    transition: 'all 0.2s'
+  }
+}
+
+const permissionLabelWrapperStyle = {
   display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  fontSize: '14px',
-  color: '#475569',
-  cursor: 'pointer',
-  fontWeight: '500'
+  flexDirection: 'column',
+  gap: '2px'
+}
+
+const permissionCodeStyle = {
+  fontSize: '12px',
+  fontWeight: '700',
+  letterSpacing: '0.03em'
+}
+
+const permissionNameStyle = {
+  fontSize: '11px',
+  fontWeight: '500',
+  opacity: '0.75'
 }
 
 const formActionsStyle = {
@@ -1660,6 +1590,15 @@ const submitButtonStyle = {
   transition: 'all 0.2s',
   boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)',
   letterSpacing: '0.01em'
+}
+
+const btnSpinnerStyle = {
+  width: '18px',
+  height: '18px',
+  border: '2px solid rgba(255,255,255,0.3)',
+  borderTop: '2px solid white',
+  borderRadius: '50%',
+  animation: 'spin 0.8s linear infinite'
 }
 
 // Helper

@@ -10,9 +10,9 @@ export const getCreditsData = (params = {}) => {
 
 // ==================== CLIENTS ====================
 // Liste des clients
-export const getClients = (params = {}) => {
-  // params doit contenir id_entreprise et role
-  return api.get('api_clients.php?action=list_clients', { params });
+export const getClients = () => {
+  // Plus de paramètre à passer
+  return api.get('api_clients.php?action=list_clients');
 };
 
 // Détail d'un client
@@ -93,6 +93,12 @@ export const deleteEntrepot = (id) => {
   return api.post('api_entrepots.php?action=delete_entrepot', { id });
 };
 
+export const getUsers = () => api.get('api_users.php?action=list')
+export const addUser = (payload) => api.post('api_users.php?action=add', payload)
+export const updateUser = (payload) => api.put('api_users.php?action=update', payload)
+export const adeleteUser = (id) => api.delete(`api_users.php?action=delete&id=${id}`)
+export const toggleUserStatus = (id) => api.put('api_users.php?action=toggle-status', { id })
+
 import axios from 'axios';
 
 // Création d'une instance Axios pour toutes les requêtes API
@@ -156,9 +162,22 @@ export const authLogin = (email, password) => {
   return authApi.post('api_auth.php?action=login', { email, password });
 };
 
+export const authActivate = (email, code) => {
+  return authApi.post('api_auth.php?action=activate', { email, code });
+};
+
 // Inscription : POST api_auth.php?action=register2
 export const authRegister = (payload) => {
   return authApi.post('api_auth.php?action=register2', payload);
 };
+
+/**
+ * Définir le mot de passe après validation du code OTP
+ * POST /api/auth.php?action=set_password
+ * @param {string} email    - Email de l'utilisateur
+ * @param {string} password - Nouveau mot de passe en clair
+ */
+export const authSetPassword = (email, password) =>
+  authApi.post('api_auth.php?action=set_password', { email, password })
 
 export default api;
