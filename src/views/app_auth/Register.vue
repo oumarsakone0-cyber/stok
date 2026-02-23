@@ -325,7 +325,7 @@
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
                   Précédent
                 </button>
-                <button type="submit" :style="submitButtonStyle" :disabled="loading || !isStep2Valid" @mouseenter="submitHovered=true" @mouseleave="submitHovered=false">
+                <button type="submit" :style="submitButtonStyle" :disabled="loading" @mouseenter="submitHovered=true" @mouseleave="submitHovered=false">
                   <span v-if="!loading">Créer mon compte</span>
                   <span v-else style="display:flex;align-items:center;gap:10px">
                     <div class="spinner"></div> Inscription...
@@ -469,7 +469,47 @@ const goToNextStep = () => {
   else errorMessage.value = 'Veuillez remplir tous les champs requis'
 }
 const goToPreviousStep = () => { currentStep.value = 1; errorMessage.value = '' }
-const handleFormSubmit = async () => { if (currentStep.value === 1) { goToNextStep(); return } await handleRegister() }
+
+const handleFormSubmit = async () => {
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  // Étape 1 : on passe simplement à l'étape suivante
+  if (currentStep.value === 1) {
+    goToNextStep()
+    return
+  }
+
+  // Étape 2 : vérifications détaillées pour afficher une alerte précise
+  const issues = []
+
+  if (!formData.password || !formData.passwordConfirm) {
+    issues.push('Veuillez saisir et confirmer votre mot de passe')
+  }
+
+  if (formData.password && formData.password.length < 8) {
+    issues.push('Le mot de passe doit contenir au moins 8 caractères')
+  }
+
+  if (formData.password && passwordScore.value < 2) {
+    issues.push("Le mot de passe n'est pas assez sécurisé (majuscule, minuscule, chiffre, caractère spécial)")
+  }
+
+  if (formData.password && formData.passwordConfirm && formData.password !== formData.passwordConfirm) {
+    issues.push('Les mots de passe ne correspondent pas')
+  }
+
+  if (!acceptTerms.value) {
+    issues.push("Vous devez accepter les conditions d'utilisation pour créer un compte")
+  }
+
+  if (!isStep2Valid.value || issues.length) {
+    errorMessage.value = issues[0] || 'Veuillez vérifier les informations de sécurité avant de continuer'
+    return
+  }
+
+  await handleRegister()
+}
 
 const handleRegister = async () => {
   errorMessage.value = ''; successMessage.value = ''

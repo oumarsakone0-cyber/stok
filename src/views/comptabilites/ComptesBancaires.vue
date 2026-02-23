@@ -135,6 +135,10 @@ const getUserParams = () => {
   const base = `&user_id=${userId || ''}&role=${role}`
   return id_entreprise ? `${base}&id_entreprise=${id_entreprise}` : base
 }
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 const goTo = (path) => router.push(path)
 
@@ -152,7 +156,10 @@ const balanceStyle = (amount) => ({
 const loadComptes = async () => {
   loading.value = true
   try {
-    const res = await fetch(`${API_BASE_URL}/api_gestion_bancaire.php?action=list_comptes${getUserParams()}${randomParam()}`)
+    const res = await fetch(
+      `${API_BASE_URL}/api_gestion_bancaire.php?action=list_comptes${getUserParams()}${randomParam()}`,
+      { headers: getAuthHeaders() }
+    )
     const data = await res.json()
     comptes.value = data.success ? (data.data || []) : []
   } catch (e) {
@@ -188,7 +195,7 @@ const saveCompte = async () => {
     const payload = { ...form.value, user_id: authStore.user?.id, id_entreprise: authStore.user?.id_entreprise }
     const res = await fetch(`${API_BASE_URL}/api_gestion_bancaire.php?action=${action}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload)
     })
     const data = await res.json()
@@ -208,7 +215,7 @@ const deleteCompte = async (c) => {
   try {
     const res = await fetch(`${API_BASE_URL}/api_gestion_bancaire.php?action=delete_compte`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ id_compte: c.id, user_id: authStore.user?.id, id_entreprise: authStore.user?.id_entreprise })
     })
     const data = await res.json()
