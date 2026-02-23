@@ -1,5 +1,5 @@
 <?php
-// API Gestion Bancaire - Comptes / Transactions
+// API Gestion Bancaire - Comptes / Transactions + Envoi Mail
 
 $allowed_origins = [
     'http://localhost:5173',
@@ -28,14 +28,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// Modèle identique à api_auth.php / api_users.php pour PHPMailer / Mailer
+// ===================== PHPMailer =====================
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require 'phpmailer/Exception.php';
 require 'phpmailer/PHPMailer.php';
 require 'phpmailer/SMTP.php';
+
 require_once 'Mailer.php';
+
+// ===================== Database =====================
+require_once __DIR__ . '/config/database.php';
 
 function jsonResponse($code, $payload) {
     http_response_code($code);
@@ -62,45 +66,7 @@ function getStr($value, $default = '') {
     return trim((string)$value);
 }
 
-/**
- * Notification email automatique aux administrateurs lors des opérations bancaires.
- * Remarque: l'envoi ne doit jamais bloquer l'API.
- */
-function sendBanqueEmailToAdmins($db, $id_entreprise, $subject, $htmlBody) {
-    try {
-        $sql = "SELECT email, nom, prenom
-                FROM app_utilisateurs
-                WHERE statut = 'actif' AND id_role = 1";
-        $params = [];
-        if ($id_entreprise !== null) {
-            $sql .= " AND (id_entreprise = ? OR id_entreprise IS NULL)";
-            $params[] = $id_entreprise;
-        }
-        $admins = $db->query($sql, $params);
-        if (empty($admins)) return;
-
-        foreach ($admins as $admin) {
-            $to = trim($admin['email'] ?? '');
-            if ($to === '') continue;
-
-            $nomComplet = trim(($admin['prenom'] ?? '') . ' ' . ($admin['nom'] ?? ''));
-            $body  = "<p>Bonjour " . htmlspecialchars($nomComplet ?: 'Admin') . ",</p>";
-            $body .= $htmlBody;
-            $body .= "<p style=\"font-size:12px;color:#6b7280;\">"
-                . "Notification automatique - Gestion bancaire Next Stock."
-                . "</p>";
-
-            if (class_exists('Mailer')) {
-                Mailer::sendSimpleHtml($to, $subject, $body);
-            }
-        }
-    } catch (Throwable $e) {
-        // ignore
-    }
-}
-
 try {
-    require_once __DIR__ . '/config/database.php';
     if (!class_exists('Database')) {
         throw new Exception("Classe Database introuvable dans config/database.php");
     }
@@ -113,7 +79,6 @@ try {
     // ===================== GET =====================
     if ($method === 'GET') {
         if ($action === 'list_comptes') {
-            // solde_actuel calculé: solde_initial + credits - debits
             $sql = "SELECT 
                         c.id_compte as id,
                         c.id_entreprise,
@@ -214,6 +179,8 @@ try {
             $id_entreprise = $id_entreprise_body;
         }
 
+        // ---------- COMPTES ----------
+
         if ($action === 'add_compte') {
             $banque = getStr($body['banque'] ?? '');
             $nom_compte = getStr($body['nom_compte'] ?? '');
@@ -227,17 +194,6 @@ try {
                         (id_entreprise, banque, nom_compte, numero_compte, devise, solde_initial, create_by, date_creation)
                     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
             $db->query($sql, [$id_entreprise, $banque, $nom_compte, $numero_compte, $devise, $solde_initial, $user_id]);
-
-            $emailBody = "<p>Un nouveau compte bancaire a &eacute;t&eacute; cr&eacute;&eacute;.</p>"
-                . "<ul>"
-                . "<li><strong>Banque :</strong> " . htmlspecialchars($banque) . "</li>"
-                . "<li><strong>Nom du compte :</strong> " . htmlspecialchars($nom_compte) . "</li>"
-                . "<li><strong>Num&eacute;ro :</strong> " . htmlspecialchars($numero_compte) . "</li>"
-                . "<li><strong>Devise :</strong> " . htmlspecialchars($devise) . "</li>"
-                . "<li><strong>Solde initial :</strong> " . htmlspecialchars((string)$solde_initial) . "</li>"
-                . "</ul>";
-            sendBanqueEmailToAdmins($db, $id_entreprise, 'Nouveau compte bancaire', $emailBody);
-
             jsonResponse(200, ['success' => true, 'data' => ['id_compte' => (int)$db->lastInsertId()]]);
         }
 
@@ -260,18 +216,6 @@ try {
                 $params[] = $id_entreprise;
             }
             $db->query($sql, $params);
-
-            $emailBody = "<p>Un compte bancaire a &eacute;t&eacute; modifi&eacute;.</p>"
-                . "<ul>"
-                . "<li><strong>ID compte :</strong> " . htmlspecialchars((string)$id_compte) . "</li>"
-                . "<li><strong>Banque :</strong> " . htmlspecialchars($banque) . "</li>"
-                . "<li><strong>Nom du compte :</strong> " . htmlspecialchars($nom_compte) . "</li>"
-                . "<li><strong>Num&eacute;ro :</strong> " . htmlspecialchars($numero_compte) . "</li>"
-                . "<li><strong>Devise :</strong> " . htmlspecialchars($devise) . "</li>"
-                . "<li><strong>Solde initial :</strong> " . htmlspecialchars((string)$solde_initial) . "</li>"
-                . "</ul>";
-            sendBanqueEmailToAdmins($db, $id_entreprise, 'Compte bancaire modifi&eacute;', $emailBody);
-
             jsonResponse(200, ['success' => true]);
         }
 
@@ -279,24 +223,6 @@ try {
             $id_compte = getInt($body['id_compte'] ?? null, null);
             if ($id_compte === null) jsonResponse(400, ['success' => false, 'error' => 'id_compte requis']);
 
-            // Récupérer infos avant suppression pour le mail
-            $compteInfo = null;
-            try {
-                $infoSql = "SELECT banque, nom_compte, numero_compte, devise, solde_initial
-                            FROM app_compta_comptes_bancaires
-                            WHERE id_compte = ?";
-                $infoParams = [$id_compte];
-                if ($id_entreprise !== null) {
-                    $infoSql .= " AND (id_entreprise = ? OR id_entreprise IS NULL)";
-                    $infoParams[] = $id_entreprise;
-                }
-                $rowsInfo = $db->query($infoSql, $infoParams);
-                if (!empty($rowsInfo)) $compteInfo = $rowsInfo[0];
-            } catch (Throwable $e) {
-                // ignore
-            }
-
-            // Empêcher suppression si transactions existent
             $check = $db->query("SELECT COUNT(*) as c FROM app_compta_transactions_bancaires WHERE id_compte = ?", [$id_compte]);
             $count = !empty($check) ? (int)($check[0]['c'] ?? 0) : 0;
             if ($count > 0) {
@@ -310,26 +236,10 @@ try {
                 $params[] = $id_entreprise;
             }
             $db->query($sql, $params);
-
-            $banque = $compteInfo['banque'] ?? '';
-            $nom_compte = $compteInfo['nom_compte'] ?? '';
-            $numero_compte = $compteInfo['numero_compte'] ?? '';
-            $devise = $compteInfo['devise'] ?? '';
-            $solde_initial = isset($compteInfo['solde_initial']) ? (float)$compteInfo['solde_initial'] : null;
-
-            $emailBody = "<p>Un compte bancaire a &eacute;t&eacute; supprim&eacute;.</p>"
-                . "<ul>"
-                . "<li><strong>ID compte :</strong> " . htmlspecialchars((string)$id_compte) . "</li>"
-                . "<li><strong>Banque :</strong> " . htmlspecialchars($banque) . "</li>"
-                . "<li><strong>Nom du compte :</strong> " . htmlspecialchars($nom_compte) . "</li>"
-                . "<li><strong>Num&eacute;ro :</strong> " . htmlspecialchars($numero_compte) . "</li>"
-                . "<li><strong>Devise :</strong> " . htmlspecialchars($devise) . "</li>"
-                . "<li><strong>Solde initial :</strong> " . htmlspecialchars((string)$solde_initial) . "</li>"
-                . "</ul>";
-            sendBanqueEmailToAdmins($db, $id_entreprise, 'Compte bancaire supprim&eacute;', $emailBody);
-
             jsonResponse(200, ['success' => true]);
         }
+
+        // ---------- TRANSACTIONS ----------
 
         if ($action === 'add_transaction') {
             $date_transaction = getStr($body['date_transaction'] ?? '');
@@ -340,13 +250,14 @@ try {
             $libelle = getStr($body['libelle'] ?? '');
             $note = getStr($body['note'] ?? '');
             $user_id = getInt($body['user_id'] ?? null, null);
+            $email_destinataire = getStr($body['email_notification'] ?? '');
 
             if ($date_transaction === '' || $id_compte === null || ($sens !== 'DEBIT' && $sens !== 'CREDIT') || $montant <= 0) {
                 jsonResponse(400, ['success' => false, 'error' => 'Champs requis: date_transaction, id_compte, sens, montant']);
             }
 
-            // vérifier compte existant
-            $checkSql = "SELECT id_compte FROM app_compta_comptes_bancaires WHERE id_compte = ?";
+            // Verifier compte existant
+            $checkSql = "SELECT id_compte, nom_compte FROM app_compta_comptes_bancaires WHERE id_compte = ?";
             $checkParams = [$id_compte];
             if ($id_entreprise !== null) {
                 $checkSql .= " AND (id_entreprise = ? OR id_entreprise IS NULL)";
@@ -355,29 +266,73 @@ try {
             $check = $db->query($checkSql, $checkParams);
             if (empty($check)) jsonResponse(404, ['success' => false, 'error' => 'Compte introuvable']);
 
+            $nom_compte = $check[0]['nom_compte'] ?? 'N/A';
+
             $sql = "INSERT INTO app_compta_transactions_bancaires
                         (id_entreprise, id_compte, date_transaction, sens, montant, reference, libelle, note, create_by, date_creation)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             $db->query($sql, [$id_entreprise, $id_compte, $date_transaction, $sens, $montant, $reference, $libelle, $note, $user_id]);
+            $id_transaction = (int)$db->lastInsertId();
 
-            $compteNom = '';
-            try {
-                $c = $db->query("SELECT nom_compte FROM app_compta_comptes_bancaires WHERE id_compte = ?", [$id_compte]);
-                if (!empty($c)) $compteNom = $c[0]['nom_compte'] ?? '';
-            } catch (Throwable $e) {}
+            // ===================== ENVOI MAIL NOTIFICATION =====================
+            $mail_sent = false;
+            if ($email_destinataire !== '') {
+                try {
+                    $type_label = ($sens === 'CREDIT') ? 'Credit' : 'Debit';
+                    $montant_fmt = number_format($montant, 0, ',', ' ');
+                    $sujet = "Nouvelle transaction {$type_label} - {$montant_fmt} XOF";
 
-            $emailBody = "<p>Une nouvelle transaction bancaire a &eacute;t&eacute; enregistr&eacute;e.</p>"
-                . "<ul>"
-                . "<li><strong>Date :</strong> " . htmlspecialchars($date_transaction) . "</li>"
-                . "<li><strong>Compte :</strong> " . htmlspecialchars($compteNom ?: (string)$id_compte) . "</li>"
-                . "<li><strong>Sens :</strong> " . htmlspecialchars($sens) . "</li>"
-                . "<li><strong>Montant :</strong> " . htmlspecialchars((string)$montant) . "</li>"
-                . "<li><strong>R&eacute;f&eacute;rence :</strong> " . htmlspecialchars($reference) . "</li>"
-                . "<li><strong>Libell&eacute; :</strong> " . htmlspecialchars($libelle) . "</li>"
-                . "</ul>";
-            sendBanqueEmailToAdmins($db, $id_entreprise, 'Nouvelle transaction bancaire', $emailBody);
+                    $corps = "
+                        <div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;'>
+                            <h2 style='color:#333;border-bottom:2px solid #007bff;padding-bottom:10px;'>
+                                Notification de Transaction Bancaire
+                            </h2>
+                            <table style='width:100%;border-collapse:collapse;margin:20px 0;'>
+                                <tr style='background:#f8f9fa;'>
+                                    <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Type</td>
+                                    <td style='padding:10px;border:1px solid #dee2e6;color:" . ($sens === 'CREDIT' ? '#28a745' : '#dc3545') . ";font-weight:bold;'>{$type_label}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Montant</td>
+                                    <td style='padding:10px;border:1px solid #dee2e6;font-size:18px;font-weight:bold;'>{$montant_fmt} XOF</td>
+                                </tr>
+                                <tr style='background:#f8f9fa;'>
+                                    <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Compte</td>
+                                    <td style='padding:10px;border:1px solid #dee2e6;'>{$nom_compte}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Date</td>
+                                    <td style='padding:10px;border:1px solid #dee2e6;'>{$date_transaction}</td>
+                                </tr>
+                                <tr style='background:#f8f9fa;'>
+                                    <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Reference</td>
+                                    <td style='padding:10px;border:1px solid #dee2e6;'>{$reference}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Libelle</td>
+                                    <td style='padding:10px;border:1px solid #dee2e6;'>{$libelle}</td>
+                                </tr>
+                            </table>
+                            <p style='color:#666;font-size:12px;margin-top:20px;'>
+                                Cet email a ete envoye automatiquement. Ne pas repondre.
+                            </p>
+                        </div>
+                    ";
 
-            jsonResponse(200, ['success' => true, 'data' => ['id_transaction' => (int)$db->lastInsertId()]]);
+                    Mailer::sendCustom($email_destinataire, $sujet, $corps);
+                    $mail_sent = true;
+                } catch (Exception $e) {
+                    error_log("Erreur envoi mail transaction: " . $e->getMessage());
+                }
+            }
+
+            jsonResponse(200, [
+                'success' => true,
+                'data' => [
+                    'id_transaction' => $id_transaction,
+                    'mail_sent' => $mail_sent
+                ]
+            ]);
         }
 
         if ($action === 'update_transaction') {
@@ -405,47 +360,12 @@ try {
                 $params[] = $id_entreprise;
             }
             $db->query($sql, $params);
-
-            $compteNom = '';
-            try {
-                $c = $db->query("SELECT nom_compte FROM app_compta_comptes_bancaires WHERE id_compte = ?", [$id_compte]);
-                if (!empty($c)) $compteNom = $c[0]['nom_compte'] ?? '';
-            } catch (Throwable $e) {}
-
-            $emailBody = "<p>Une transaction bancaire a &eacute;t&eacute; modifi&eacute;e.</p>"
-                . "<ul>"
-                . "<li><strong>ID transaction :</strong> " . htmlspecialchars((string)$id_transaction) . "</li>"
-                . "<li><strong>Date :</strong> " . htmlspecialchars($date_transaction) . "</li>"
-                . "<li><strong>Compte :</strong> " . htmlspecialchars($compteNom ?: (string)$id_compte) . "</li>"
-                . "<li><strong>Sens :</strong> " . htmlspecialchars($sens) . "</li>"
-                . "<li><strong>Montant :</strong> " . htmlspecialchars((string)$montant) . "</li>"
-                . "<li><strong>R&eacute;f&eacute;rence :</strong> " . htmlspecialchars($reference) . "</li>"
-                . "<li><strong>Libell&eacute; :</strong> " . htmlspecialchars($libelle) . "</li>"
-                . "</ul>";
-            sendBanqueEmailToAdmins($db, $id_entreprise, 'Transaction bancaire modifi&eacute;e', $emailBody);
-
             jsonResponse(200, ['success' => true]);
         }
 
         if ($action === 'delete_transaction') {
             $id_transaction = getInt($body['id_transaction'] ?? null, null);
             if ($id_transaction === null) jsonResponse(400, ['success' => false, 'error' => 'id_transaction requis']);
-
-            // récupérer infos avant suppression
-            $txInfo = null;
-            try {
-                $infoSql = "SELECT t.date_transaction, t.sens, t.montant, t.reference, t.libelle, t.id_compte, c.nom_compte as compte_nom
-                            FROM app_compta_transactions_bancaires t
-                            INNER JOIN app_compta_comptes_bancaires c ON c.id_compte = t.id_compte
-                            WHERE t.id_transaction = ?";
-                $infoParams = [$id_transaction];
-                if ($id_entreprise !== null) {
-                    $infoSql .= " AND (t.id_entreprise = ? OR t.id_entreprise IS NULL)";
-                    $infoParams[] = $id_entreprise;
-                }
-                $rowsInfo = $db->query($infoSql, $infoParams);
-                if (!empty($rowsInfo)) $txInfo = $rowsInfo[0];
-            } catch (Throwable $e) {}
 
             $sql = "DELETE FROM app_compta_transactions_bancaires WHERE id_transaction = ?";
             $params = [$id_transaction];
@@ -454,33 +374,73 @@ try {
                 $params[] = $id_entreprise;
             }
             $db->query($sql, $params);
-
-            $date_transaction = $txInfo['date_transaction'] ?? '';
-            $sens = $txInfo['sens'] ?? '';
-            $montant = isset($txInfo['montant']) ? (float)$txInfo['montant'] : null;
-            $reference = $txInfo['reference'] ?? '';
-            $libelle = $txInfo['libelle'] ?? '';
-            $compteNom = $txInfo['compte_nom'] ?? ($txInfo['id_compte'] ?? '');
-
-            $emailBody = "<p>Une transaction bancaire a &eacute;t&eacute; supprim&eacute;e.</p>"
-                . "<ul>"
-                . "<li><strong>ID transaction :</strong> " . htmlspecialchars((string)$id_transaction) . "</li>"
-                . "<li><strong>Date :</strong> " . htmlspecialchars((string)$date_transaction) . "</li>"
-                . "<li><strong>Compte :</strong> " . htmlspecialchars((string)$compteNom) . "</li>"
-                . "<li><strong>Sens :</strong> " . htmlspecialchars((string)$sens) . "</li>"
-                . "<li><strong>Montant :</strong> " . htmlspecialchars((string)$montant) . "</li>"
-                . "<li><strong>R&eacute;f&eacute;rence :</strong> " . htmlspecialchars((string)$reference) . "</li>"
-                . "<li><strong>Libell&eacute; :</strong> " . htmlspecialchars((string)$libelle) . "</li>"
-                . "</ul>";
-            sendBanqueEmailToAdmins($db, $id_entreprise, 'Transaction bancaire supprim&eacute;e', $emailBody);
-
             jsonResponse(200, ['success' => true]);
+        }
+
+        // ---------- ENVOI MAIL MANUEL (rapport / releve) ----------
+
+        if ($action === 'envoyer_releve') {
+            $email = getStr($body['email'] ?? '');
+            $nom_compte = getStr($body['nom_compte'] ?? '');
+            $periode = getStr($body['periode'] ?? '');
+            $total_credit = (float)($body['total_credit'] ?? 0);
+            $total_debit = (float)($body['total_debit'] ?? 0);
+            $solde = (float)($body['solde'] ?? 0);
+            $transactions_html = getStr($body['transactions_html'] ?? '');
+
+            if ($email === '') jsonResponse(400, ['success' => false, 'error' => 'Email requis']);
+
+            try {
+                $credit_fmt = number_format($total_credit, 0, ',', ' ');
+                $debit_fmt = number_format($total_debit, 0, ',', ' ');
+                $solde_fmt = number_format($solde, 0, ',', ' ');
+                $solde_color = $solde >= 0 ? '#28a745' : '#dc3545';
+
+                $sujet = "Releve Bancaire - {$nom_compte}" . ($periode !== '' ? " ({$periode})" : '');
+
+                $corps = "
+                    <div style='font-family:Arial,sans-serif;max-width:700px;margin:0 auto;'>
+                        <h2 style='color:#333;border-bottom:2px solid #007bff;padding-bottom:10px;'>
+                            Releve de Compte Bancaire
+                        </h2>
+                        <p><strong>Compte :</strong> {$nom_compte}</p>
+                        " . ($periode !== '' ? "<p><strong>Periode :</strong> {$periode}</p>" : '') . "
+
+                        <table style='width:100%;border-collapse:collapse;margin:20px 0;'>
+                            <tr style='background:#d4edda;'>
+                                <td style='padding:12px;font-weight:bold;border:1px solid #dee2e6;'>Total Credits</td>
+                                <td style='padding:12px;border:1px solid #dee2e6;color:#28a745;font-weight:bold;font-size:16px;'>+{$credit_fmt} XOF</td>
+                            </tr>
+                            <tr style='background:#f8d7da;'>
+                                <td style='padding:12px;font-weight:bold;border:1px solid #dee2e6;'>Total Debits</td>
+                                <td style='padding:12px;border:1px solid #dee2e6;color:#dc3545;font-weight:bold;font-size:16px;'>-{$debit_fmt} XOF</td>
+                            </tr>
+                            <tr style='background:#e2e3e5;'>
+                                <td style='padding:12px;font-weight:bold;border:1px solid #dee2e6;'>Solde</td>
+                                <td style='padding:12px;border:1px solid #dee2e6;color:{$solde_color};font-weight:bold;font-size:18px;'>{$solde_fmt} XOF</td>
+                            </tr>
+                        </table>
+
+                        " . ($transactions_html !== '' ? "<h3>Detail des transactions</h3>{$transactions_html}" : '') . "
+
+                        <p style='color:#666;font-size:12px;margin-top:30px;border-top:1px solid #eee;padding-top:10px;'>
+                            Cet email a ete genere automatiquement. Ne pas repondre.
+                        </p>
+                    </div>
+                ";
+
+                Mailer::sendCustom($email, $sujet, $corps);
+
+                jsonResponse(200, ['success' => true, 'message' => 'Releve envoye par email']);
+            } catch (Exception $e) {
+                jsonResponse(500, ['success' => false, 'error' => 'Erreur envoi email', 'details' => $e->getMessage()]);
+            }
         }
 
         jsonResponse(404, ['success' => false, 'error' => 'Action POST inconnue']);
     }
 
-    jsonResponse(405, ['success' => false, 'error' => 'Méthode non autorisée']);
+    jsonResponse(405, ['success' => false, 'error' => 'Methode non autorisee']);
 
 } catch (Throwable $e) {
     jsonResponse(500, [
@@ -489,4 +449,3 @@ try {
         'details' => $e->getMessage()
     ]);
 }
-

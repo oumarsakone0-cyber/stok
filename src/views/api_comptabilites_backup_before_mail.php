@@ -1,12 +1,10 @@
 <?php
-// API Comptabilites - Depenses / Motifs / Pieces + Envoi Mail
+// API Comptabilités - Dépenses / Motifs / Pièces
 
 $allowed_origins = [
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
-    'http://localhost:5176',
-    'http://localhost:5177',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5174',
     'http://127.0.0.1:5175'
@@ -29,18 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     echo json_encode(['status' => 'ok']);
     exit;
 }
-
-// ===================== PHPMailer =====================
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-require 'phpmailer/Exception.php';
-require 'phpmailer/PHPMailer.php';
-require 'phpmailer/SMTP.php';
-require_once 'Mailer.php';
-
-// ===================== Database =====================
-require_once __DIR__ . '/config/database.php';
 
 function jsonResponse($code, $payload) {
     http_response_code($code);
@@ -67,53 +53,8 @@ function getStr($value, $default = '') {
     return trim((string)$value);
 }
 
-/**
- * Envoi d'une notification email aux administrateurs de l'entreprise.
- * Meme logique que api_auth.php / Mailer::sendRegister : on utilise
- * la classe Mailer centralisee pour l'envoi SMTP.
- */
-function sendComptaEmailToAdmins($db, $id_entreprise, $subject, $htmlBody) {
-    try {
-        $sql = "SELECT email, nom, prenom 
-                FROM app_utilisateurs 
-                WHERE statut = 'actif' AND id_role = 1";
-        $params = [];
-        if ($id_entreprise !== null) {
-            $sql .= " AND (id_entreprise = ? OR id_entreprise IS NULL)";
-            $params[] = $id_entreprise;
-        }
-        $admins = $db->query($sql, $params);
-        if (empty($admins)) {
-            return;
-        }
-
-        foreach ($admins as $admin) {
-            $to = trim($admin['email'] ?? '');
-            if ($to === '') continue;
-
-            $nomComplet = trim(($admin['prenom'] ?? '') . ' ' . ($admin['nom'] ?? ''));
-            $body  = "<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;'>";
-            $body .= "<h2 style='color:#333;border-bottom:2px solid #007bff;padding-bottom:10px;'>"
-                   . htmlspecialchars($subject) . "</h2>";
-            $body .= "<p>Bonjour " . htmlspecialchars($nomComplet ?: 'Admin') . ",</p>";
-            $body .= $htmlBody;
-            $body .= "<p style='color:#666;font-size:12px;margin-top:20px;border-top:1px solid #eee;padding-top:10px;'>"
-                   . "Notification automatique - Module comptabilites Next Stock."
-                   . "</p></div>";
-
-            if (class_exists('Mailer') && method_exists('Mailer', 'sendSimpleHtml')) {
-                Mailer::sendSimpleHtml($to, $subject, $body);
-            } elseif (class_exists('Mailer') && method_exists('Mailer', 'sendCustom')) {
-                Mailer::sendCustom($to, $subject, $body);
-            }
-        }
-    } catch (Throwable $e) {
-        // On ignore toute erreur d'email pour ne pas casser les operations comptables
-        error_log("Erreur envoi mail compta admins: " . $e->getMessage());
-    }
-}
-
 try {
+    require_once __DIR__ . '/config/database.php';
     if (!class_exists('Database')) {
         throw new Exception("Classe Database introuvable dans config/database.php");
     }
@@ -122,7 +63,7 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? '';
 
-    // Multi-tenant
+    // Multi-tenant (optionnel mais recommandé)
     $id_entreprise = getInt($_GET['id_entreprise'] ?? null, null);
 
     // ===================== GET =====================
@@ -316,7 +257,7 @@ try {
         if ($action === 'add_motif') {
             $libelle = getStr($body['libelle'] ?? '');
             $description = getStr($body['description'] ?? '');
-            if ($libelle === '') jsonResponse(400, ['success' => false, 'error' => 'Libelle requis']);
+            if ($libelle === '') jsonResponse(400, ['success' => false, 'error' => 'Libellé requis']);
 
             $sql = "INSERT INTO app_compta_motifs_depense (id_entreprise, libelle, description, date_creation)
                     VALUES (?, ?, ?, NOW())";
@@ -329,7 +270,7 @@ try {
             $libelle = getStr($body['libelle'] ?? '');
             $description = getStr($body['description'] ?? '');
             if ($id_motif === null) jsonResponse(400, ['success' => false, 'error' => 'id_motif requis']);
-            if ($libelle === '') jsonResponse(400, ['success' => false, 'error' => 'Libelle requis']);
+            if ($libelle === '') jsonResponse(400, ['success' => false, 'error' => 'Libellé requis']);
 
             $sql = "UPDATE app_compta_motifs_depense SET libelle = ?, description = ? WHERE id_motif = ?";
             $params = [$libelle, $description, $id_motif];
@@ -345,11 +286,11 @@ try {
             $id_motif = getInt($body['id_motif'] ?? null, null);
             if ($id_motif === null) jsonResponse(400, ['success' => false, 'error' => 'id_motif requis']);
 
-            // Securite: empecher suppression si utilise
+            // Sécurité: empêcher suppression si utilisé
             $check = $db->query("SELECT COUNT(*) as c FROM app_compta_depenses WHERE motif_id = ?", [$id_motif]);
             $count = !empty($check) ? (int)($check[0]['c'] ?? 0) : 0;
             if ($count > 0) {
-                jsonResponse(400, ['success' => false, 'error' => 'Motif utilise dans des depenses']);
+                jsonResponse(400, ['success' => false, 'error' => 'Motif utilisé dans des dépenses']);
             }
 
             $sql = "DELETE FROM app_compta_motifs_depense WHERE id_motif = ?";
@@ -379,42 +320,6 @@ try {
                     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
             $db->query($sql, [$id_entreprise, $motif_id, $date_depense, $beneficiaire, $description, $montant, $user_id]);
             $id_depense = $db->lastInsertId();
-
-            // Recuperer le libelle du motif pour le mail
-            $motif_libelle = 'N/A';
-            if ($motif_id !== null) {
-                $motifRows = $db->query("SELECT libelle FROM app_compta_motifs_depense WHERE id_motif = ?", [$motif_id]);
-                if (!empty($motifRows)) $motif_libelle = $motifRows[0]['libelle'] ?? 'N/A';
-            }
-
-            // ===================== NOTIFICATION EMAIL AUX ADMINS =====================
-            $montant_fmt = number_format($montant, 0, ',', ' ');
-            $emailBody = "
-                <p>Une nouvelle depense vient d'etre enregistree.</p>
-                <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
-                    <tr style='background:#f8f9fa;'>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Date</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($date_depense) . "</td>
-                    </tr>
-                    <tr>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Montant</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;color:#dc3545;font-weight:bold;font-size:16px;'>{$montant_fmt} XOF</td>
-                    </tr>
-                    <tr style='background:#f8f9fa;'>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Motif</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($motif_libelle) . "</td>
-                    </tr>
-                    <tr>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Beneficiaire</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($beneficiaire) . "</td>
-                    </tr>
-                    <tr style='background:#f8f9fa;'>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Description</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . nl2br(htmlspecialchars($description)) . "</td>
-                    </tr>
-                </table>";
-            sendComptaEmailToAdmins($db, $id_entreprise, 'Nouvelle depense enregistree', $emailBody);
-
             jsonResponse(200, ['success' => true, 'data' => ['id_depense' => (int)$id_depense]]);
         }
 
@@ -441,35 +346,6 @@ try {
                 $params[] = $id_entreprise;
             }
             $db->query($sql, $params);
-
-            // ===================== NOTIFICATION EMAIL AUX ADMINS =====================
-            $montant_fmt = number_format($montant, 0, ',', ' ');
-            $emailBody = "
-                <p>Une depense a ete modifiee.</p>
-                <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
-                    <tr style='background:#f8f9fa;'>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>ID Depense</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars((string)$id_depense) . "</td>
-                    </tr>
-                    <tr>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Nouvelle date</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($date_depense) . "</td>
-                    </tr>
-                    <tr style='background:#f8f9fa;'>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Nouveau montant</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;color:#dc3545;font-weight:bold;'>{$montant_fmt} XOF</td>
-                    </tr>
-                    <tr>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Beneficiaire</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($beneficiaire) . "</td>
-                    </tr>
-                    <tr style='background:#f8f9fa;'>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Description</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . nl2br(htmlspecialchars($description)) . "</td>
-                    </tr>
-                </table>";
-            sendComptaEmailToAdmins($db, $id_entreprise, 'Depense modifiee', $emailBody);
-
             jsonResponse(200, ['success' => true]);
         }
 
@@ -477,27 +353,7 @@ try {
             $id_depense = getInt($body['id_depense'] ?? null, null);
             if ($id_depense === null) jsonResponse(400, ['success' => false, 'error' => 'id_depense requis']);
 
-            // Recuperer les infos avant suppression pour le mail
-            $depenseInfo = null;
-            try {
-                $infoSql = "SELECT d.date_depense, d.beneficiaire, d.description, d.montant, m.libelle as motif_libelle
-                            FROM app_compta_depenses d
-                            LEFT JOIN app_compta_motifs_depense m ON m.id_motif = d.motif_id
-                            WHERE d.id_depense = ?";
-                $infoParams = [$id_depense];
-                if ($id_entreprise !== null) {
-                    $infoSql .= " AND (d.id_entreprise = ? OR d.id_entreprise IS NULL)";
-                    $infoParams[] = $id_entreprise;
-                }
-                $rowsInfo = $db->query($infoSql, $infoParams);
-                if (!empty($rowsInfo)) {
-                    $depenseInfo = $rowsInfo[0];
-                }
-            } catch (Throwable $e) {
-                // en cas d'erreur, on continue la suppression
-            }
-
-            // Supprimer pieces d'abord (si pas de cascade)
+            // Supprimer pièces d’abord (si pas de cascade)
             $db->query("DELETE FROM app_compta_depense_pieces WHERE id_depense = ?", [$id_depense]);
 
             $sql = "DELETE FROM app_compta_depenses WHERE id_depense = ?";
@@ -507,45 +363,6 @@ try {
                 $params[] = $id_entreprise;
             }
             $db->query($sql, $params);
-
-            // ===================== NOTIFICATION EMAIL AUX ADMINS =====================
-            $del_date = $depenseInfo['date_depense'] ?? 'N/A';
-            $del_montant = isset($depenseInfo['montant']) ? (float)$depenseInfo['montant'] : 0;
-            $del_montant_fmt = number_format($del_montant, 0, ',', ' ');
-            $del_beneficiaire = $depenseInfo['beneficiaire'] ?? 'N/A';
-            $del_description = $depenseInfo['description'] ?? '';
-            $del_motif = $depenseInfo['motif_libelle'] ?? 'N/A';
-
-            $emailBody = "
-                <p style='color:#dc3545;font-weight:bold;'>Une depense a ete supprimee.</p>
-                <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
-                    <tr style='background:#f8f9fa;'>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>ID Depense</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars((string)$id_depense) . "</td>
-                    </tr>
-                    <tr>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Date</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($del_date) . "</td>
-                    </tr>
-                    <tr style='background:#f8f9fa;'>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Montant</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;color:#dc3545;font-weight:bold;'>{$del_montant_fmt} XOF</td>
-                    </tr>
-                    <tr>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Motif</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($del_motif) . "</td>
-                    </tr>
-                    <tr style='background:#f8f9fa;'>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Beneficiaire</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($del_beneficiaire) . "</td>
-                    </tr>
-                    <tr>
-                        <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Description</td>
-                        <td style='padding:10px;border:1px solid #dee2e6;'>" . nl2br(htmlspecialchars($del_description)) . "</td>
-                    </tr>
-                </table>";
-            sendComptaEmailToAdmins($db, $id_entreprise, 'Depense supprimee', $emailBody);
-
             jsonResponse(200, ['success' => true]);
         }
 
@@ -556,7 +373,7 @@ try {
             if ($id_depense === null) jsonResponse(400, ['success' => false, 'error' => 'id_depense requis']);
             if (!is_array($pieces) || count($pieces) === 0) jsonResponse(200, ['success' => true, 'data' => []]);
 
-            // Verifier que la depense existe
+            // Vérifier que la dépense existe
             $checkSql = "SELECT id_depense FROM app_compta_depenses WHERE id_depense = ?";
             $checkParams = [$id_depense];
             if ($id_entreprise !== null) {
@@ -564,7 +381,7 @@ try {
                 $checkParams[] = $id_entreprise;
             }
             $check = $db->query($checkSql, $checkParams);
-            if (empty($check)) jsonResponse(404, ['success' => false, 'error' => 'Depense introuvable']);
+            if (empty($check)) jsonResponse(404, ['success' => false, 'error' => 'Dépense introuvable']);
 
             foreach ($pieces as $p) {
                 $url = getStr($p['url'] ?? $p['url_fichier'] ?? '');
@@ -595,59 +412,10 @@ try {
             jsonResponse(200, ['success' => true]);
         }
 
-        // ---------- ENVOI MAIL MANUEL (rapport depenses) ----------
-
-        if ($action === 'envoyer_rapport') {
-            $email = getStr($body['email'] ?? '');
-            $periode = getStr($body['periode'] ?? '');
-            $nb_depenses = getInt($body['nb_depenses'] ?? 0, 0);
-            $total = (float)($body['total'] ?? 0);
-            $details_html = getStr($body['details_html'] ?? '');
-
-            if ($email === '') jsonResponse(400, ['success' => false, 'error' => 'Email requis']);
-
-            try {
-                $total_fmt = number_format($total, 0, ',', ' ');
-                $sujet = "Rapport des Depenses" . ($periode !== '' ? " - {$periode}" : '');
-
-                $corps = "
-                    <div style='font-family:Arial,sans-serif;max-width:700px;margin:0 auto;'>
-                        <h2 style='color:#333;border-bottom:2px solid #007bff;padding-bottom:10px;'>
-                            Rapport des Depenses
-                        </h2>
-                        " . ($periode !== '' ? "<p><strong>Periode :</strong> {$periode}</p>" : '') . "
-
-                        <table style='width:100%;border-collapse:collapse;margin:20px 0;'>
-                            <tr style='background:#f8f9fa;'>
-                                <td style='padding:12px;font-weight:bold;border:1px solid #dee2e6;'>Nombre de depenses</td>
-                                <td style='padding:12px;border:1px solid #dee2e6;font-weight:bold;font-size:16px;'>{$nb_depenses}</td>
-                            </tr>
-                            <tr style='background:#f8d7da;'>
-                                <td style='padding:12px;font-weight:bold;border:1px solid #dee2e6;'>Total des depenses</td>
-                                <td style='padding:12px;border:1px solid #dee2e6;color:#dc3545;font-weight:bold;font-size:18px;'>{$total_fmt} XOF</td>
-                            </tr>
-                        </table>
-
-                        " . ($details_html !== '' ? "<h3>Detail des depenses</h3>{$details_html}" : '') . "
-
-                        <p style='color:#666;font-size:12px;margin-top:30px;border-top:1px solid #eee;padding-top:10px;'>
-                            Cet email a ete genere automatiquement. Ne pas repondre.
-                        </p>
-                    </div>
-                ";
-
-                Mailer::sendCustom($email, $sujet, $corps);
-
-                jsonResponse(200, ['success' => true, 'message' => 'Rapport envoye par email']);
-            } catch (Exception $e) {
-                jsonResponse(500, ['success' => false, 'error' => 'Erreur envoi email', 'details' => $e->getMessage()]);
-            }
-        }
-
         jsonResponse(404, ['success' => false, 'error' => 'Action POST inconnue']);
     }
 
-    jsonResponse(405, ['success' => false, 'error' => 'Methode non autorisee']);
+    jsonResponse(405, ['success' => false, 'error' => 'Méthode non autorisée']);
 
 } catch (Throwable $e) {
     jsonResponse(500, [
@@ -656,3 +424,4 @@ try {
         'details' => $e->getMessage()
     ]);
 }
+

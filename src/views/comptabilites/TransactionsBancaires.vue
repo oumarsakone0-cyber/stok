@@ -184,6 +184,10 @@ const getUserParams = () => {
   const base = `&user_id=${userId || ''}&role=${role}`
   return id_entreprise ? `${base}&id_entreprise=${id_entreprise}` : base
 }
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 const goTo = (path) => router.push(path)
 
@@ -216,7 +220,10 @@ const amountStyle = (sens) => ({
 
 const loadComptes = async () => {
   try {
-    const res = await fetch(`${API_BASE_URL}/api_gestion_bancaire.php?action=list_comptes${getUserParams()}${randomParam()}`)
+    const res = await fetch(
+      `${API_BASE_URL}/api_gestion_bancaire.php?action=list_comptes${getUserParams()}${randomParam()}`,
+      { headers: getAuthHeaders() }
+    )
     const data = await res.json()
     comptes.value = data.success ? (data.data || []) : []
   } catch (e) {
@@ -236,7 +243,7 @@ const loadTransactions = async () => {
     if (filters.value.search) params.set('search', filters.value.search)
 
     const url = `${API_BASE_URL}/api_gestion_bancaire.php?action=list_transactions${getUserParams()}&${params.toString()}${randomParam()}`
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: getAuthHeaders() })
     const data = await res.json()
     transactions.value = data.success ? (data.data || []) : []
   } catch (e) {
@@ -288,7 +295,7 @@ const saveTransaction = async () => {
     const payload = { ...form.value, user_id: authStore.user?.id, id_entreprise: authStore.user?.id_entreprise }
     const res = await fetch(`${API_BASE_URL}/api_gestion_bancaire.php?action=${action}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload)
     })
     const data = await res.json()
@@ -309,7 +316,7 @@ const deleteTransaction = async (t) => {
   try {
     const res = await fetch(`${API_BASE_URL}/api_gestion_bancaire.php?action=delete_transaction`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ id_transaction: t.id, user_id: authStore.user?.id, id_entreprise: authStore.user?.id_entreprise })
     })
     const data = await res.json()

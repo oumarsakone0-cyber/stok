@@ -283,6 +283,10 @@ const getUserParams = () => {
   const base = `&user_id=${userId || ''}&role=${role}`
   return id_entreprise ? `${base}&id_entreprise=${id_entreprise}` : base
 }
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 const goTo = (path) => router.push(path)
 
@@ -302,7 +306,10 @@ const formatDate = (iso) => {
 
 const loadMotifs = async () => {
   try {
-    const res = await fetch(`${API_BASE_URL}/api_comptabilites.php?action=list_motifs${getUserParams()}${randomParam()}`)
+    const res = await fetch(
+      `${API_BASE_URL}/api_comptabilites.php?action=list_motifs${getUserParams()}${randomParam()}`,
+      { headers: getAuthHeaders() }
+    )
     const data = await res.json()
     motifs.value = data.success ? (data.data || []) : []
   } catch (e) {
@@ -321,7 +328,7 @@ const loadDepenses = async () => {
     if (filters.value.search) params.set('search', filters.value.search)
 
     const url = `${API_BASE_URL}/api_comptabilites.php?action=list_depenses${getUserParams()}&${params.toString()}${randomParam()}`
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: getAuthHeaders() })
     const data = await res.json()
     depenses.value = data.success ? (data.data || []) : []
   } catch (e) {
@@ -340,7 +347,7 @@ const loadStats = async () => {
     if (filters.value.motif_id) params.set('motif_id', filters.value.motif_id)
 
     const url = `${API_BASE_URL}/api_comptabilites.php?action=stats_depenses${getUserParams()}&${params.toString()}${randomParam()}`
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: getAuthHeaders() })
     const data = await res.json()
     stats.value = data.success ? (data.data || { total_periode: 0, nb_depenses: 0 }) : { total_periode: 0, nb_depenses: 0 }
   } catch (e) {
@@ -402,7 +409,7 @@ const saveDepense = async () => {
     }
     const res = await fetch(`${API_BASE_URL}/api_comptabilites.php?action=${action}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload)
     })
     const data = await res.json()
@@ -438,7 +445,7 @@ const deleteDepense = async (d) => {
   try {
     const res = await fetch(`${API_BASE_URL}/api_comptabilites.php?action=delete_depense`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ id_depense: d.id, user_id: authStore.user?.id, id_entreprise: authStore.user?.id_entreprise })
     })
     const data = await res.json()
@@ -466,7 +473,10 @@ const closePiecesModal = () => {
 const loadPieces = async (id_depense) => {
   piecesLoading.value = true
   try {
-    const res = await fetch(`${API_BASE_URL}/api_comptabilites.php?action=list_pieces&id_depense=${id_depense}${getUserParams()}${randomParam()}`)
+    const res = await fetch(
+      `${API_BASE_URL}/api_comptabilites.php?action=list_pieces&id_depense=${id_depense}${getUserParams()}${randomParam()}`,
+      { headers: getAuthHeaders() }
+    )
     const data = await res.json()
     pieces.value = data.success ? (data.data || []) : []
   } catch (e) {
@@ -482,7 +492,7 @@ const deletePiece = async (p) => {
   try {
     const res = await fetch(`${API_BASE_URL}/api_comptabilites.php?action=delete_piece`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ id_piece: p.id, user_id: authStore.user?.id, id_entreprise: authStore.user?.id_entreprise })
     })
     const data = await res.json()
