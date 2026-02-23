@@ -362,12 +362,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import SidebarLayout from '../SidebarLayout.vue'
 import { useAuthStore } from '../../stores/authStore'
-import { getApiBaseUrl } from '../../services/api.js'
+import api from '../../services/api.js'
+
+import { useToast } from 'vue-toastification'
+const toast = useToast()
 
 const router = useRouter()
 const authStore = useAuthStore()
-
-const API_BASE_URL = getApiBaseUrl()
 
 // State
 const loading = ref(false)
@@ -449,37 +450,31 @@ const getUserParams = () => {
 const loadFournisseurs = async () => {
   loading.value = true
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_fournisseurs.php?action=list_fournisseurs${getUserParams()}${randomParam()}`
-    )
-    const data = await response.json()
-    if (data.success) {
-      fournisseurs.value = data.data || []
+    const response = await api.get('api_fournisseurs.php?action=list_fournisseurs');
+    if (response.data.success) {
+      fournisseurs.value = response.data.data || [];
     } else {
-      fournisseurs.value = []
+      fournisseurs.value = [];
     }
   } catch (error) {
-    console.error('Erreur lors du chargement des fournisseurs:', error)
-    fournisseurs.value = []
+    console.error('Erreur lors du chargement des fournisseurs:', error);
+    fournisseurs.value = [];
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 // Charger les stats globales des fournisseurs
 const loadStatsGlobal = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_fournisseurs.php?action=rapport_global${getUserParams()}${randomParam()}`
-    )
-    const data = await response.json()
-    if (data.success) {
-      statsGlobal.value = data.data?.statistiques || data.data || {}
+    const response = await api.get('api_fournisseurs.php?action=rapport_global');
+    if (response.data.success) {
+      statsGlobal.value = response.data.data?.statistiques || response.data.data || {};
     } else {
-      console.warn('Stats: API retourne success=false:', data.message || data.error)
+      console.warn('Stats: API retourne success=false:', response.data.message || response.data.error);
     }
   } catch (error) {
-    console.error('Erreur lors du chargement des stats:', error)
+    console.error('Erreur lors du chargement des stats:', error);
   }
 }
 
@@ -518,43 +513,35 @@ const closeFournisseurModal = () => {
 
 const saveFournisseur = async () => {
   if (!formFournisseur.value.nom || !formFournisseur.value.telephone) {
-    alert('Nom et téléphone requis')
-    return
+    toast.error('Nom et téléphone requis');
+    return;
   }
 
-  saving.value = true
+  saving.value = true;
   try {
-    const url = editingFournisseur.value 
-      ? `${API_BASE_URL}/api_fournisseurs.php?action=update_fournisseur`
-      : `${API_BASE_URL}/api_fournisseurs.php?action=add_fournisseur`
-    
-    // Ajouter le user_id lors de la creation
-    const payload = { ...formFournisseur.value }
-    if (!editingFournisseur.value) {
-      payload.user_id = authStore.user?.id
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-    
-    const data = await response.json()
-    
-    if (data.success) {
-      await loadFournisseurs()
-      await loadStatsGlobal()
-      closeFournisseurModal()
-      alert(data.message)
+    const payload = { ...formFournisseur.value };
+    let response;
+    if (editingFournisseur.value) {
+      // Edition
+      payload.id = editingFournisseur.value.id || editingFournisseur.value.id_fournisseur;
+      response = await api.post('api_fournisseurs.php?action=update_fournisseur', payload);
     } else {
-      alert(data.error)
+      // Création
+      response = await api.post('api_fournisseurs.php?action=add_fournisseur', payload);
+    }
+    if (response.data.success) {
+      await loadFournisseurs();
+      await loadStatsGlobal();
+      closeFournisseurModal();
+      toast.success(response.data.message);
+    } else {
+      toast.error(response.data.error);
     }
   } catch (error) {
-    console.error('Erreur:', error)
-    alert('Erreur de sauvegarde')
+    console.error('Erreur:', error);
+    toast.error('Erreur de sauvegarde');
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 

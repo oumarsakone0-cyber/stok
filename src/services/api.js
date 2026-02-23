@@ -103,7 +103,7 @@ import axios from 'axios';
 
 // Création d'une instance Axios pour toutes les requêtes API
 const api = axios.create({
-  baseURL: 'https://www.aliadjame.com/api',
+  baseURL: '/api', // Utilise le proxy Vite pour éviter CORS en dev
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

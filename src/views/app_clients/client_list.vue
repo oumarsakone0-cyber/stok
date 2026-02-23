@@ -187,8 +187,8 @@
                   <span :style="creditCountStyle">{{ client.nombre_commandes || 0 }}</span>
                 </td>
                 <td :style="tdStyle">
-                  <span :style="getDetteStyle(client.total_achats)">
-                    {{ formatMoney(client.total_achats || 0) }}
+                  <span :style="getDetteStyle(client.total_dette)">
+                    {{ formatMoney(client.total_dette || 0) }}
                   </span>
                 </td>
                 <td :style="tdStyle">
@@ -229,6 +229,7 @@
             <circle cx="9" cy="7" r="4"/>
           </svg>
           <p :style="emptyTextStyle">{{ searchQuery ? 'Aucun client trouve' : 'Aucun client enregistre' }}</p>
+          
         </div>
       </div>
 
@@ -523,14 +524,25 @@ const getUserParams = () => {
   return { id_entreprise, role }
 }
 
+const apiRawResponse = ref(null);
 const loadClients = async () => {
   loading.value = true
   try {
     const response = await getClients(); // plus de params
+    apiRawResponse.value = JSON.stringify(response.data, null, 2);
+    console.log('Réponse API getClients:', response.data);
     if (response.data.success) {
-      clients.value = response.data.data;
+      // Harmoniser les champs pour chaque client
+      clients.value = response.data.data.map(client => ({
+        ...client,
+        // Correction : utiliser total_dette partout
+        total_dette: client.total_dette !== undefined ? client.total_dette : (client.total_achats || 0),
+        // Correction : id_client pour cohérence
+        id_client: client.id_client !== undefined ? client.id_client : client.id,
+      }));
     }
   } catch (error) {
+    apiRawResponse.value = error?.response ? JSON.stringify(error.response.data, null, 2) : error.toString();
     console.error('Erreur:', error);
     alert('Erreur de chargement des clients');
   } finally {

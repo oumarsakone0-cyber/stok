@@ -542,15 +542,14 @@
 </template>
 
 <script setup>
+
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import SidebarLayout from '../SidebarLayout.vue'
-import { getApiBaseUrl } from '../../services/api.js'
+import api from '../../services/api.js'
 
 const router = useRouter()
 const route = useRoute()
-
-const API_BASE_URL = getApiBaseUrl()
 const fournisseurId = route.params.id
 
 // State
@@ -616,57 +615,45 @@ const randomParam = () => `&_=${Date.now()}_${Math.floor(Math.random() * 100000)
 // Methods
 const loadFournisseur = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_fournisseurs.php?action=get_fournisseur&id=${fournisseurId}${randomParam()}`
-    )
-    const data = await response.json()
-    if (data.success) {
-      fournisseur.value = data.data
+    const response = await api.get(`api_fournisseurs.php?action=get_fournisseur&id=${fournisseurId}`);
+    if (response.data.success) {
+      fournisseur.value = response.data.data;
     }
   } catch (error) {
-    console.error('Erreur:', error)
+    console.error('Erreur:', error);
   }
 }
 
 const loadStats = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_fournisseurs.php?action=stats_fournisseur&id=${fournisseurId}${randomParam()}`
-    )
-    const data = await response.json()
-    if (data.success) {
-      stats.value = data.data
+    const response = await api.get(`api_fournisseurs.php?action=stats_fournisseur&id=${fournisseurId}`);
+    if (response.data.success) {
+      stats.value = response.data.data;
     }
   } catch (error) {
-    console.error('Erreur:', error)
+    console.error('Erreur:', error);
   }
 }
 
 const loadProduits = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_fournisseurs.php?action=list_produits&fournisseur_id=${fournisseurId}${randomParam()}`
-    )
-    const data = await response.json()
-    if (data.success) {
-      produits.value = data.data
+    const response = await api.get(`api_fournisseurs.php?action=list_produits&fournisseur_id=${fournisseurId}`);
+    if (response.data.success) {
+      produits.value = response.data.data;
     }
   } catch (error) {
-    console.error('Erreur:', error)
+    console.error('Erreur:', error);
   }
 }
 
 const loadCommandes = async () => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api_fournisseurs.php?action=list_commandes&fournisseur_id=${fournisseurId}${randomParam()}`
-    )
-    const data = await response.json()
-    if (data.success) {
-      commandes.value = data.data
+    const response = await api.get(`api_fournisseurs.php?action=list_commandes&fournisseur_id=${fournisseurId}`);
+    if (response.data.success) {
+      commandes.value = response.data.data;
     }
   } catch (error) {
-    console.error('Erreur:', error)
+    console.error('Erreur:', error);
   }
 }
 
@@ -717,56 +704,46 @@ const calculerPrixNet = () => {
 
 const saveProduit = async () => {
   if (!formProduit.value.nom_produit || !formProduit.value.prix_unitaire) {
-    alert('Nom et prix requis')
-    return
+      toast.error('Nom et prix requis');
+    return;
   }
 
-  saving.value = true
+  saving.value = true;
   try {
-    formProduit.value.fournisseur_id = fournisseurId
-    
-    const url = editingProduit.value 
-      ? `${API_BASE_URL}/api_fournisseurs.php?action=update_produit`
-      : `${API_BASE_URL}/api_fournisseurs.php?action=add_produit`
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formProduit.value)
-    })
-    
-    const data = await response.json()
-    
-    if (data.success) {
-      await loadProduits()
-      await loadStats()
-      closeProduitModal()
-      alert(data.message)
+    formProduit.value.fournisseur_id = fournisseurId;
+    let response;
+    if (editingProduit.value) {
+      response = await api.post('api_fournisseurs.php?action=update_produit', formProduit.value);
     } else {
-      alert(data.message)
+      response = await api.post('api_fournisseurs.php?action=add_produit', formProduit.value);
+    }
+    if (response.data.success) {
+      await loadProduits();
+      await loadStats();
+      closeProduitModal();
+      toast.success(response.data.message);
+    } else {
+      toast.error(response.data.message);
     }
   } catch (error) {
-    console.error('Erreur:', error)
-    alert('Erreur de sauvegarde')
+      console.error('Erreur:', error);
+      toast.error('Erreur de sauvegarde');
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 const deleteProduit = async (id) => {
-  if (!confirm('Supprimer ce produit ?')) return
-
+  if (!confirm('Supprimer ce produit ?')) return;
   try {
-    const response = await fetch(`${API_BASE_URL}/api_fournisseurs.php?action=delete_produit&id=${id}`)
-    const data = await response.json()
-    
-    if (data.success) {
-      await loadProduits()
-      await loadStats()
-      alert(data.message)
+    const response = await api.get(`api_fournisseurs.php?action=delete_produit&id=${id}`);
+    if (response.data.success) {
+      await loadProduits();
+      await loadStats();
+      alert(response.data.message);
     }
   } catch (error) {
-    console.error('Erreur:', error)
+    console.error('Erreur:', error);
   }
 }
 
@@ -790,35 +767,27 @@ const closeCommandeModal = () => {
 
 const saveCommande = async () => {
   if (!formCommande.value.numero_commande || !formCommande.value.montant_total) {
-    alert('N° commande et montant requis')
-    return
+      toast.error('N° commande et montant requis');
+    return;
   }
 
-  saving.value = true
+  saving.value = true;
   try {
-    formCommande.value.fournisseur_id = fournisseurId
-    
-    const response = await fetch(`${API_BASE_URL}/api_fournisseurs.php?action=add_commande`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formCommande.value)
-    })
-    
-    const data = await response.json()
-    
-    if (data.success) {
-      await loadCommandes()
-      await loadStats()
-      closeCommandeModal()
-      alert(data.message)
+    formCommande.value.fournisseur_id = fournisseurId;
+    const response = await api.post('api_fournisseurs.php?action=add_commande', formCommande.value);
+    if (response.data.success) {
+      await loadCommandes();
+      await loadStats();
+      closeCommandeModal();
+      toast.success(response.data.message);
     } else {
-      alert(data.message)
+      toast.error(response.data.message);
     }
   } catch (error) {
-    console.error('Erreur:', error)
-    alert('Erreur de création')
+      console.error('Erreur:', error);
+      toast.error('Erreur de création');
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
@@ -843,44 +812,34 @@ const closePaiementModal = () => {
 
 const savePaiement = async () => {
   if (!formPaiement.value.montant_paye) {
-    alert('Montant requis')
-    return
+      toast.error('Montant requis');
+    return;
   }
-
   if (formPaiement.value.montant_paye > selectedCommande.value.montant_restant) {
-    alert('Le montant dépasse le reste dû')
-    return
+      toast.error('Le montant dépasse le reste dû');
+    return;
   }
-
-  saving.value = true
+  saving.value = true;
   try {
     const payload = {
       ...formPaiement.value,
       commande_id: selectedCommande.value.id,
       fournisseur_id: fournisseurId
-    }
-    
-    const response = await fetch(`${API_BASE_URL}/api_fournisseurs.php?action=add_paiement`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-    
-    const data = await response.json()
-    
-    if (data.success) {
-      await loadCommandes()
-      await loadStats()
-      closePaiementModal()
-      alert(data.message)
+    };
+    const response = await api.post('api_fournisseurs.php?action=add_paiement', payload);
+    if (response.data.success) {
+      await loadCommandes();
+      await loadStats();
+      closePaiementModal();
+      toast.success(response.data.message);
     } else {
-      alert(data.message)
+      toast.error(response.data.message);
     }
   } catch (error) {
-    console.error('Erreur:', error)
-    alert('Erreur d\'enregistrement')
+      console.error('Erreur:', error);
+      toast.error("Erreur d'enregistrement");
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 

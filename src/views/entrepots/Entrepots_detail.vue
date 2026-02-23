@@ -63,8 +63,8 @@
             </svg>
           </div>
           <div>
-            <p :style="statsLabelStyle">Entrées aujourd'hui</p>
-            <p :style="statsValueStyle">{{ stats.entrees_aujourdhui || 0 }}</p>
+            <p :style="statsLabelStyle">Entrées totales</p>
+            <p :style="statsValueStyle">{{ stats.entrees_totales || 0 }}</p>
           </div>
         </div>
 
@@ -76,8 +76,8 @@
             </svg>
           </div>
           <div>
-            <p :style="statsLabelStyle">Sorties aujourd'hui</p>
-            <p :style="statsValueStyle">{{ stats.sorties_aujourdhui || 0 }}</p>
+            <p :style="statsLabelStyle">Sorties totales</p>
+            <p :style="statsValueStyle">{{ stats.sorties_totales || 0 }}</p>
           </div>
         </div>
 
@@ -90,8 +90,8 @@
             </svg>
           </div>
           <div>
-            <p :style="statsLabelStyle">Alertes stock</p>
-            <p :style="statsValueStyle">{{ stats.produits_alerte || 0 }}</p>
+            <p :style="statsLabelStyle">Quantité totale</p>
+            <p :style="statsValueStyle">{{ stats.quantite_totale || 0 }}</p>
           </div>
         </div>
       </div>
@@ -421,8 +421,6 @@ import { getEntrepot, getEntrepotStats, getEntrepotProduits, getEntrepotMouvemen
 const router = useRouter()
 const route = useRoute()
 
-// API Configuration
-const API_BASE_URL = 'https://sogetrag.com/apistok'
 
 // State
 const entrepotId = computed(() => route.params.id)
@@ -489,6 +487,7 @@ const loadEntrepot = async () => {
 const loadStats = async () => {
   try {
     const { data } = await getEntrepotStats(entrepotId.value)
+    console.log('Réponse API stats_entrepot:', data)
     if (data.success) {
       stats.value = data.data
     }
