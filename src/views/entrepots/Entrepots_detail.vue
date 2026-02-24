@@ -413,6 +413,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useToast } from 'vue-toastification'
 import { useRouter, useRoute } from 'vue-router'
 import SidebarLayout from '../SidebarLayout.vue'
 import EntrepotRapportPeriode from './EntrepotRapportPeriode.vue'
@@ -420,6 +421,7 @@ import { getEntrepot, getEntrepotStats, getEntrepotProduits, getEntrepotMouvemen
 
 const router = useRouter()
 const route = useRoute()
+const toast = useToast()
 
 
 // State
@@ -564,8 +566,14 @@ const saveProduit = async () => {
   saving.value = true
   try {
     formProduit.value.entrepot_id = entrepotId.value
+    // Nettoyage du payload : suppression des champs interdits
+    const payload = { ...formProduit.value }
+    // Pour update, il faut garder id, mais supprimer les autres champs interdits
+    delete payload.id_entreprise
+    delete payload.cree_par
+    delete payload.modifie_par
     const apiCall = editingProduit.value ? updateEntrepotProduit : addEntrepotProduit
-    const { data } = await apiCall(formProduit.value)
+    const { data } = await apiCall(payload)
     if (data.success) {
       await loadProduits()
       await loadStats()
@@ -606,7 +614,13 @@ const saveMouvement = async () => {
   saving.value = true
   try {
     formMouvement.value.entrepot_id = entrepotId.value
-    const { data } = await addEntrepotMouvement(formMouvement.value)
+    // Nettoyage du payload : suppression des champs interdits
+    const payload = { ...formMouvement.value }
+    delete payload.id
+    delete payload.id_entreprise
+    delete payload.cree_par
+    delete payload.modifie_par
+    const { data } = await addEntrepotMouvement(payload)
     if (data.success) {
       await Promise.all([loadMouvements(), loadProduits(), loadStats()])
       closeMouvementModal()

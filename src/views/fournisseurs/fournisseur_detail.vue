@@ -21,8 +21,11 @@
             <h1 :style="titleStyle">{{ fournisseur.nom }}</h1>
             <p v-if="fournisseur.nom_entreprise" :style="entrepriseStyle">{{ fournisseur.nom_entreprise }}</p>
             <div :style="contactsStyle">
-              <span :style="contactItemStyle">📞 {{ fournisseur.telephone }}</span>
+              <span v-if="fournisseur.telephone" :style="contactItemStyle">📞 {{ fournisseur.telephone }}</span>
+              <span v-if="fournisseur.telephone2" :style="contactItemStyle">📞2 {{ fournisseur.telephone2 }}</span>
               <span v-if="fournisseur.email" :style="contactItemStyle">✉️ {{ fournisseur.email }}</span>
+              <span v-if="fournisseur.tel_commercial" :style="contactItemStyle">📞 Commercial: {{ fournisseur.tel_commercial }}</span>
+              <span v-if="fournisseur.nom_commercial" :style="contactItemStyle">👤 Nom commercial: {{ fournisseur.nom_commercial }}</span>
             </div>
           </div>
         </div>
@@ -617,7 +620,33 @@ const loadFournisseur = async () => {
   try {
     const response = await api.get(`api_fournisseurs.php?action=get_fournisseur&id=${fournisseurId}`);
     if (response.data.success) {
-      fournisseur.value = response.data.data;
+      // Harmonisation des champs pour correspondre à la table
+      const f = response.data.data || {};
+      fournisseur.value = {
+        ...f,
+        contact: f.contact || f.telephone || '',
+        telephone: f.telephone || f.contact || '',
+        telephone2: f.telephone2 || '',
+        email: f.email || '',
+        email_commercial: f.email_commercial || '',
+        nom_commercial: f.nom_commercial || '',
+
+        nom_entreprise: f.nom_entreprise || '',
+        quartier: f.quartier || '',
+        ville: f.ville || '',
+        pays: f.pays || '',
+        adresse: f.adresse || '',
+        categorie_fournisseur: f.categorie_fournisseur || f.type_fournisseur || '',
+        type_fournisseur: f.type_fournisseur || f.categorie_fournisseur || '',
+        conditions_paiement: f.conditions_paiement || '',
+        delai_livraison: f.delai_livraison || f.delai_livraison_moyen || '',
+        delai_livraison_moyen: f.delai_livraison_moyen || f.delai_livraison || '',
+        statut: f.statut || 'Actif',
+        evaluation: f.evaluation ?? f.note_evaluation ?? null,
+        note_evaluation: f.note_evaluation ?? f.evaluation ?? null,
+        notes: f.notes || '',
+        for_shop: f.for_shop ? 1 : 0
+      };
     }
   } catch (error) {
     console.error('Erreur:', error);

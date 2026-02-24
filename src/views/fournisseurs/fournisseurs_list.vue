@@ -147,7 +147,7 @@
                   <p v-if="fournisseur.nom_entreprise" :style="entrepriseStyle">{{ fournisseur.nom_entreprise }}</p>
                 </td>
                 <td :style="tdStyle">
-                  <p :style="phoneStyle">{{ fournisseur.contact || fournisseur.telephone || 'N/A' }}</p>
+                  <p :style="phoneStyle">{{ fournisseur.telephone || fournisseur.contact || 'N/A' }}</p>
                   <p v-if="fournisseur.email" :style="emailStyle">{{ fournisseur.email }}</p>
                 </td>
                 <td :style="tdStyle">
@@ -155,8 +155,12 @@
                   <p :style="villeStyle">{{ fournisseur.ville || '' }}</p>
                 </td>
                 <td :style="tdStyle">
-                  <span :style="typeBadgeStyle(fournisseur.categorie_fournisseur || fournisseur.type_fournisseur)">
-                    {{ fournisseur.categorie_fournisseur || fournisseur.type_fournisseur || 'N/A' }}
+                  <span :style="typeBadgeStyle(fournisseur.type_fournisseur || fournisseur.categorie_fournisseur)">
+                    {{
+                      fournisseur.categorie_fournisseur && fournisseur.type_fournisseur
+                        ? fournisseur.categorie_fournisseur + ' (' + fournisseur.type_fournisseur + ')'
+                        : (fournisseur.categorie_fournisseur || fournisseur.type_fournisseur || 'N/A')
+                    }}
                   </span>
                 </td>
                 <td :style="tdStyle">
@@ -297,8 +301,17 @@
                 </div>
 
                 <div :style="formGroupStyle">
-                  <label :style="labelStyle">Contact commercial</label>
+                  <label :style="labelStyle">Nom commercial</label>
                   <input v-model="formFournisseur.nom_commercial" type="text" :style="inputStyle" />
+                </div>
+
+                <div :style="formGroupStyle">
+                  <label :style="labelStyle">Catégorie fournisseur</label>
+                  <select v-model="formFournisseur.categorie_fournisseur" :style="selectStyle">
+                    <option value="">Sélectionner</option>
+                    <option value="particulier">Particulier</option>
+                    <option value="entreprise">Entreprise</option>
+                  </select>
                 </div>
 
                 <div :style="formGroupStyle">
@@ -386,23 +399,27 @@ const newHovered = ref(false)
 const formFournisseur = ref({
   nom: '',
   nom_entreprise: '',
-  telephone: '',
-  telephone2: '',
-  email: '',
+  categorie_fournisseur: '', // enum('particulier', 'entreprise')
+  type_fournisseur: '', // varchar(50), pour compatibilité
   adresse: '',
   quartier: '',
   ville: 'Abidjan',
   pays: 'Côte d\'Ivoire',
-  type_fournisseur: 'Grossiste',
-  categorie_produits: '',
-  conditions_paiement: '',
-  delai_livraison_moyen: null,
+  contact: '',
+  telephone: '', // pour compatibilité frontend
+  telephone2: '',
+  email: '',
   nom_commercial: '',
   telephone_commercial: '',
-  email_commercial: '',
+  categorie_client: '',
+  delai_livraison: '',
+  delai_livraison_moyen: '',
+  conditions_paiement: '',
   statut: 'Actif',
+  evaluation: null,
   note_evaluation: null,
-  notes: ''
+  notes: '',
+  for_shop: 0
 })
 
 // Computed
@@ -491,35 +508,111 @@ const closeFournisseurModal = () => {
   formFournisseur.value = {
     nom: '',
     nom_entreprise: '',
-    telephone: '',
-    telephone2: '',
-    email: '',
+    categorie_fournisseur: '',
+    type_fournisseur: '',
     adresse: '',
     quartier: '',
     ville: 'Abidjan',
     pays: 'Côte d\'Ivoire',
-    type_fournisseur: 'Grossiste',
-    categorie_produits: '',
-    conditions_paiement: '',
-    delai_livraison_moyen: null,
+    contact: '',
+    telephone: '',
+    telephone2: '',
+    email: '',
+    email_commercial: '',
     nom_commercial: '',
     telephone_commercial: '',
-    email_commercial: '',
+    delai_livraison: '',
+    delai_livraison_moyen: '',
+    conditions_paiement: '',
     statut: 'Actif',
+    evaluation: null,
     note_evaluation: null,
-    notes: ''
+    notes: '',
+    for_shop: 0
   }
 }
 
 const saveFournisseur = async () => {
-  if (!formFournisseur.value.nom || !formFournisseur.value.telephone) {
+  // Champs obligatoires : nom et contact (ou telephone)
+  if (!formFournisseur.value.nom || (!formFournisseur.value.contact && !formFournisseur.value.telephone)) {
     toast.error('Nom et téléphone requis');
     return;
   }
 
   saving.value = true;
+
   try {
-    const payload = { ...formFournisseur.value };
+
+    // Construction du payload strictement aligné avec la table, sans id_entreprise, created_by, modified_by (gérés côté backend)
+    const {
+      nom,
+      nom_entreprise,
+      categorie_fournisseur,
+      type_fournisseur,
+      adresse,
+      quartier,
+      ville,
+      pays,
+      contact,
+      telephone,
+      telephone2,
+      email,
+      email_commercial,
+      nom_commercial,
+      telephone_commercial,
+      delai_livraison,
+      delai_livraison_moyen,
+      conditions_paiement,
+      statut,
+      evaluation,
+      note_evaluation,
+      notes,
+      for_shop
+    } = formFournisseur.value;
+
+    // Correction : n'envoyer categorie_fournisseur qu'une seule fois
+    const categorie = categorie_fournisseur || type_fournisseur || '';
+    const type = type_fournisseur || categorie_fournisseur || '';
+
+    const payload = {
+      nom,
+      nom_entreprise,
+      categorie_fournisseur: categorie,
+      type_fournisseur: type,
+      adresse,
+      quartier,
+      ville,
+      pays,
+      contact: contact || telephone || '',
+      telephone,
+      telephone2,
+      email,
+      email_commercial,
+      nom_commercial,
+      telephone_commercial,
+      delai_livraison: delai_livraison || delai_livraison_moyen || '',
+      delai_livraison_moyen: delai_livraison_moyen || delai_livraison || '',
+      conditions_paiement,
+      statut,
+      evaluation: evaluation ?? note_evaluation,
+      note_evaluation: note_evaluation ?? evaluation,
+      notes,
+      for_shop: for_shop ? 1 : 0
+    };
+
+    // Suppression explicite des champs interdits si jamais présents
+    delete payload.id_entreprise;
+    delete payload.created_by;
+    delete payload.modified_by;
+    delete payload.user_id;
+
+    // Nettoyage : suppression des champs vides ou nulls
+    Object.keys(payload).forEach(key => {
+      if (payload[key] === undefined || payload[key] === null || payload[key] === '') {
+        delete payload[key];
+      }
+    });
+
     let response;
     if (editingFournisseur.value) {
       // Edition
@@ -535,7 +628,7 @@ const saveFournisseur = async () => {
       closeFournisseurModal();
       toast.success(response.data.message);
     } else {
-      toast.error(response.data.error);
+      toast.error(response.data.error || response.data.message);
     }
   } catch (error) {
     console.error('Erreur:', error);

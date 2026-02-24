@@ -322,8 +322,14 @@ const saveEntrepot = async () => {
   }
   saving.value = true
   try {
+    // Nettoyage du payload : on retire tout champ interdit
+    const payload = { ...formEntrepot.value }
+    delete payload.id
+    delete payload.id_entreprise
+    delete payload.cree_par
+    delete payload.modifie_par
     const apiCall = editingEntrepot.value ? updateEntrepot : addEntrepot
-    const { data } = await apiCall(formEntrepot.value)
+    const { data } = await apiCall(payload)
     if (data.success) {
       await loadEntrepots()
       closeEntrepotModal()

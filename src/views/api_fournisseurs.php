@@ -236,7 +236,7 @@ try {
                 exit;
             }
             $create_by = isset($data['user_id']) ? (int)$data['user_id'] : (isset($data['create_by']) ? (int)$data['create_by'] : null);
-            $sql = "INSERT INTO app_fournisseurs (id_entreprise, categorie_fournisseur, nom, adresse, contact, email, delai_livraison, notes, evaluation, date_creation, create_by, for_shop) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)";
+            $sql = "INSERT INTO app_fournisseurs (id_entreprise, categorie_fournisseur, nom, adresse, contact, email, telephone_commercial, delai_livraison, notes, evaluation, date_creation, create_by, for_shop) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)";
             $params = [
                 isset($data['id_entreprise']) && $data['id_entreprise'] !== '' ? (int)$data['id_entreprise'] : null,
                 $data['categorie_fournisseur'] ?? $data['type_fournisseur'] ?? null,
@@ -244,6 +244,7 @@ try {
                 $data['adresse'] ?? null,
                 $data['contact'] ?? $data['telephone'] ?? null,
                 $data['email'] ?? null,
+                $data['telephone_commercial'] ?? null,
                 $data['delai_livraison'] ?? $data['delai_livraison_moyen'] ?? null,
                 $data['notes'] ?? null,
                 isset($data['evaluation']) ? floatval($data['evaluation']) : (isset($data['note_evaluation']) ? floatval($data['note_evaluation']) : null),
@@ -272,7 +273,7 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Fournisseur non trouvé']);
                 exit;
             }
-            $allowedFields = ['id_entreprise', 'categorie_fournisseur', 'nom', 'adresse', 'contact', 'email', 'delai_livraison', 'notes', 'evaluation', 'for_shop'];
+            $allowedFields = ['id_entreprise', 'categorie_fournisseur', 'nom', 'adresse', 'contact', 'email', 'telephone_commercial', 'delai_livraison', 'notes', 'evaluation', 'for_shop'];
             $fieldMapping = ['type_fournisseur' => 'categorie_fournisseur', 'telephone' => 'contact', 'delai_livraison_moyen' => 'delai_livraison', 'note_evaluation' => 'evaluation'];
             $fields = [];
             $params = [];
