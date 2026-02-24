@@ -154,13 +154,13 @@
         v-for="(pdv, index) in filteredPdv"
         :key="pdv.id"
         :style="getCardStyle(index)"
+        @click="goToDetails(pdv)"
         @mouseenter="hoveredCard = index"
         @mouseleave="hoveredCard = null"
         class="pdv-card pdv-fade-in"
       >
         <!-- Bande couleur haut de carte -->
         <div :style="getCardAccentStyle(index)"></div>
-
         <!-- Header carte -->
         <div :style="cardHeaderStyle">
           <div :style="getStoreIconStyle(index)">
@@ -466,9 +466,10 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import SidebarLayout from './SidebarLayout.vue'
 // import { getPdvList, addPdv, updatePdv, deletePdv as apiDeletePdv, togglePdvStatut, cloturerJourneePdv } from '../services/api'
-
+const router = useRouter()
 // ─── Constantes ─────────────────────────────────────────────────────
 const STATUS_FILTERS = [
   { key: 'all',    label: 'Tous' },
@@ -601,6 +602,10 @@ const deletePdv = async (id) => {
     // await apiDeletePdv(id)
     pdvList.value = pdvList.value.filter(p => p.id !== id)
   } catch(e) { alert('Erreur lors de la suppression') }
+}
+
+const goToDetails = (pdv) => {
+  router.push({ name: 'points_de_vente_details', params: { id: pdv.id } })
 }
 
 const toggleStatut = async (id) => {

@@ -120,7 +120,7 @@
 
           <button 
             :style="getNavItemStyle('ventes')" 
-            @click="navigateTo(currentMagasinId ? `/magasins/${currentMagasinId}/ventes` : '/magasins')"
+            @click="navigateTo(currentMagasinId ? `/points_de_vente` : '/points_de_vente')"
             @mouseenter="hoveredNav = 'ventes'" 
             @mouseleave="hoveredNav = null"
           >
