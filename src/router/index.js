@@ -209,6 +209,16 @@ const routes = [
     }
   },
   {
+    path: "/points_de_vente_details",
+    name: "points_de_vente_details",
+    component: () => import("../views/VenteDetails.vue"),
+    meta: { 
+      requiresAuth: true,
+      requiresAccess: 'users',
+      requiresAdmin: true
+    }
+  },
+  {
     path: "/departement/senasip",
     name: "senasip",
     component: () => import("../views/senasip/Senasipdashboard.vue"),
