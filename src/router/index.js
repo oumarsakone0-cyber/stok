@@ -21,6 +21,16 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+  path: "/produits",
+  name: "produits",
+  component: () => import("../views/app_produits/Liste_produits.vue"),   // ← chemin corrigé
+  meta: { 
+    requiresAuth: true,
+    requiresAccess: 'users',
+    requiresAdmin: true
+  }
+},
+  {
     path: "/magasins",
     name: "magasins",
     component: () => import("../views/magasins/MagasinsList.vue"),
@@ -198,16 +208,7 @@ const routes = [
       requiresAdmin: true
     }
   },
-  {
-    path: "/produits",
-    name: "produits",
-    component: () => import("../views/app_produits/Liste_produits.vue"),
-    meta: { 
-      requiresAuth: true,
-      requiresAccess: 'users',
-      requiresAdmin: true
-    }
-  },
+
   {
     path: "/points_de_vente",
     name: "points_de_vente",
