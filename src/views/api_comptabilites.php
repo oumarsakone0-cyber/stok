@@ -1,5 +1,6 @@
 <?php
 // API Comptabilites - Depenses / Motifs / Pieces + Envoi Mail
+// Securise par JWT : aucune info sensible dans l'URL ou le body
 
 $allowed_origins = [
     'http://localhost:5173',
@@ -39,8 +40,17 @@ require 'phpmailer/PHPMailer.php';
 require 'phpmailer/SMTP.php';
 require_once 'Mailer.php';
 
-// ===================== Database =====================
+// ===================== Database + JWT =====================
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/libs/JWT.php';
+require_once __DIR__ . '/libs/Key.php';
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+
+// ===================== Cle secrete JWT (meme que api_auth.php) =====================
+define('JWT_SECRET', '4e9f1c7b2a6d8f3c5e9a0b7d4c2f8a6e1b3c9d7e5f0a2b4c6d8e1f3a5b7c9d2');
+
+// ===================== Fonctions utilitaires =====================
 
 function jsonResponse($code, $payload) {
     http_response_code($code);
@@ -68,9 +78,39 @@ function getStr($value, $default = '') {
 }
 
 /**
+ * Extraire et verifier le token JWT depuis le header Authorization.
+ * Retourne les donnees du payload (id, nom, prenom, email, role, id_entreprise, nom_entreprise).
+ * Si le token est absent ou invalide -> 401.
+ */
+function authenticateJWT() {
+    $headers = getallheaders();
+    // Normaliser les cles (certains serveurs mettent en minuscule)
+    $headersLower = [];
+    foreach ($headers as $k => $v) {
+        $headersLower[strtolower($k)] = $v;
+    }
+    $authHeader = $headersLower['authorization'] ?? '';
+
+    if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+        jsonResponse(401, [
+            'success' => false,
+            'error'   => 'Token requis'
+        ]);
+    }
+
+    try {
+        $decoded = JWT::decode($matches[1], new Key(JWT_SECRET, 'HS256'));
+        return (array)$decoded->data;
+    } catch (Throwable $e) {
+        jsonResponse(401, [
+            'success' => false,
+            'error'   => 'Token invalide ou expire'
+        ]);
+    }
+}
+
+/**
  * Envoi d'une notification email aux administrateurs de l'entreprise.
- * Meme logique que api_auth.php / Mailer::sendRegister : on utilise
- * la classe Mailer centralisee pour l'envoi SMTP.
  */
 function sendComptaEmailToAdmins($db, $id_entreprise, $subject, $htmlBody) {
     try {
@@ -98,7 +138,7 @@ function sendComptaEmailToAdmins($db, $id_entreprise, $subject, $htmlBody) {
             $body .= "<p>Bonjour " . htmlspecialchars($nomComplet ?: 'Admin') . ",</p>";
             $body .= $htmlBody;
             $body .= "<p style='color:#666;font-size:12px;margin-top:20px;border-top:1px solid #eee;padding-top:10px;'>"
-                   . "Notification automatique - Module comptabilites Next Stock."
+                   . "Notification automatique - Module comptabilites."
                    . "</p></div>";
 
             if (class_exists('Mailer') && method_exists('Mailer', 'sendSimpleHtml')) {
@@ -108,10 +148,17 @@ function sendComptaEmailToAdmins($db, $id_entreprise, $subject, $htmlBody) {
             }
         }
     } catch (Throwable $e) {
-        // On ignore toute erreur d'email pour ne pas casser les operations comptables
         error_log("Erreur envoi mail compta admins: " . $e->getMessage());
     }
 }
+
+// ===================== AUTHENTIFICATION JWT =====================
+// Toutes les actions sont protegees : on recupere user_id et id_entreprise depuis le token
+$authUser = authenticateJWT();
+$auth_user_id      = $authUser['id']             ?? null;
+$auth_id_entreprise = $authUser['id_entreprise'] ?? null;
+$auth_role         = $authUser['role']           ?? null;
+$auth_nom          = ($authUser['prenom'] ?? '') . ' ' . ($authUser['nom'] ?? '');
 
 try {
     if (!class_exists('Database')) {
@@ -122,13 +169,13 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     $action = $_GET['action'] ?? '';
 
-    // Multi-tenant
-    $id_entreprise = getInt($_GET['id_entreprise'] ?? null, null);
+    // id_entreprise vient du token, pas des parametres
+    $id_entreprise = $auth_id_entreprise;
 
     // ===================== GET =====================
     if ($method === 'GET') {
         if ($action === 'list_motifs') {
-            $sql = "SELECT id_motif as id, libelle, description, date_creation
+            $sql = "SELECT id_motif as id, libelle
                     FROM app_compta_motifs_depense
                     WHERE 1=1";
             $params = [];
@@ -138,6 +185,7 @@ try {
             }
             $sql .= " ORDER BY libelle ASC";
             $rows = $db->query($sql, $params);
+            if (!is_array($rows)) $rows = [];
             jsonResponse(200, ['success' => true, 'data' => $rows]);
         }
 
@@ -149,7 +197,6 @@ try {
 
             $sql = "SELECT 
                         d.id_depense as id,
-                        d.id_entreprise,
                         d.motif_id,
                         m.libelle as motif_libelle,
                         d.date_depense,
@@ -188,6 +235,7 @@ try {
 
             $sql .= " ORDER BY d.date_depense DESC, d.id_depense DESC";
             $rows = $db->query($sql, $params);
+            if (!is_array($rows)) $rows = [];
             foreach ($rows as &$r) {
                 $r['montant'] = (float)($r['montant'] ?? 0);
                 $r['nb_pieces'] = (int)($r['nb_pieces'] ?? 0);
@@ -239,7 +287,6 @@ try {
             }
             $sql = "SELECT 
                         p.id_piece as id,
-                        p.id_depense,
                         p.url_fichier,
                         p.nom_original,
                         p.type_fichier,
@@ -264,10 +311,8 @@ try {
 
             $sql = "SELECT 
                         p.id_piece as id,
-                        p.id_depense,
                         d.date_depense,
                         d.beneficiaire,
-                        d.motif_id,
                         m.libelle as motif_libelle,
                         p.url_fichier,
                         p.nom_original,
@@ -308,10 +353,6 @@ try {
     // ===================== POST =====================
     if ($method === 'POST') {
         $body = readJsonBody();
-        $id_entreprise_body = getInt($body['id_entreprise'] ?? null, null);
-        if ($id_entreprise === null && $id_entreprise_body !== null) {
-            $id_entreprise = $id_entreprise_body;
-        }
 
         if ($action === 'add_motif') {
             $libelle = getStr($body['libelle'] ?? '');
@@ -321,7 +362,18 @@ try {
             $sql = "INSERT INTO app_compta_motifs_depense (id_entreprise, libelle, description, date_creation)
                     VALUES (?, ?, ?, NOW())";
             $db->query($sql, [$id_entreprise, $libelle, $description]);
-            jsonResponse(200, ['success' => true, 'data' => ['id_motif' => $db->lastInsertId()]]);
+            $new_id = $db->lastInsertId();
+
+            // Email notification
+            $emailBody = "
+                <p>Un nouveau motif de depense a ete ajoute par <strong>" . htmlspecialchars($auth_nom) . "</strong>.</p>
+                <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
+                    <tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Libelle</td><td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($libelle) . "</td></tr>
+                    <tr><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Description</td><td style='padding:10px;border:1px solid #dee2e6;'>" . nl2br(htmlspecialchars($description)) . "</td></tr>
+                </table>";
+            sendComptaEmailToAdmins($db, $id_entreprise, 'Nouveau motif de depense', $emailBody);
+
+            jsonResponse(200, ['success' => true, 'data' => ['id_motif' => $new_id]]);
         }
 
         if ($action === 'update_motif') {
@@ -338,6 +390,16 @@ try {
                 $params[] = $id_entreprise;
             }
             $db->query($sql, $params);
+
+            // Email notification
+            $emailBody = "
+                <p>Un motif de depense a ete modifie par <strong>" . htmlspecialchars($auth_nom) . "</strong>.</p>
+                <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
+                    <tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Libelle</td><td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($libelle) . "</td></tr>
+                    <tr><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Description</td><td style='padding:10px;border:1px solid #dee2e6;'>" . nl2br(htmlspecialchars($description)) . "</td></tr>
+                </table>";
+            sendComptaEmailToAdmins($db, $id_entreprise, 'Motif de depense modifie', $emailBody);
+
             jsonResponse(200, ['success' => true]);
         }
 
@@ -345,12 +407,15 @@ try {
             $id_motif = getInt($body['id_motif'] ?? null, null);
             if ($id_motif === null) jsonResponse(400, ['success' => false, 'error' => 'id_motif requis']);
 
-            // Securite: empecher suppression si utilise
             $check = $db->query("SELECT COUNT(*) as c FROM app_compta_depenses WHERE motif_id = ?", [$id_motif]);
             $count = !empty($check) ? (int)($check[0]['c'] ?? 0) : 0;
             if ($count > 0) {
                 jsonResponse(400, ['success' => false, 'error' => 'Motif utilise dans des depenses']);
             }
+
+            // Recuperer le libelle avant suppression pour l'email
+            $motifInfo = $db->query("SELECT libelle FROM app_compta_motifs_depense WHERE id_motif = ?", [$id_motif]);
+            $motif_libelle = !empty($motifInfo) ? $motifInfo[0]['libelle'] : 'N/A';
 
             $sql = "DELETE FROM app_compta_motifs_depense WHERE id_motif = ?";
             $params = [$id_motif];
@@ -359,6 +424,15 @@ try {
                 $params[] = $id_entreprise;
             }
             $db->query($sql, $params);
+
+            // Email notification
+            $emailBody = "
+                <p style='color:#dc3545;font-weight:bold;'>Un motif de depense a ete supprime par <strong>" . htmlspecialchars($auth_nom) . "</strong>.</p>
+                <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
+                    <tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Libelle supprime</td><td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($motif_libelle) . "</td></tr>
+                </table>";
+            sendComptaEmailToAdmins($db, $id_entreprise, 'Motif de depense supprime', $emailBody);
+
             jsonResponse(200, ['success' => true]);
         }
 
@@ -368,7 +442,6 @@ try {
             $beneficiaire = getStr($body['beneficiaire'] ?? '');
             $description = getStr($body['description'] ?? '');
             $montant = (float)($body['montant'] ?? 0);
-            $user_id = getInt($body['user_id'] ?? null, null);
 
             if ($date_depense === '' || $montant <= 0) {
                 jsonResponse(400, ['success' => false, 'error' => 'Date et montant requis']);
@@ -377,7 +450,7 @@ try {
             $sql = "INSERT INTO app_compta_depenses 
                         (id_entreprise, motif_id, date_depense, beneficiaire, description, montant, create_by, date_creation)
                     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
-            $db->query($sql, [$id_entreprise, $motif_id, $date_depense, $beneficiaire, $description, $montant, $user_id]);
+            $db->query($sql, [$id_entreprise, $motif_id, $date_depense, $beneficiaire, $description, $montant, $auth_user_id]);
             $id_depense = $db->lastInsertId();
 
             // Recuperer le libelle du motif pour le mail
@@ -390,7 +463,7 @@ try {
             // ===================== NOTIFICATION EMAIL AUX ADMINS =====================
             $montant_fmt = number_format($montant, 0, ',', ' ');
             $emailBody = "
-                <p>Une nouvelle depense vient d'etre enregistree.</p>
+                <p>Une nouvelle depense vient d'etre enregistree par <strong>" . htmlspecialchars($auth_nom) . "</strong>.</p>
                 <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
                     <tr style='background:#f8f9fa;'>
                         <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Date</td>
@@ -445,7 +518,7 @@ try {
             // ===================== NOTIFICATION EMAIL AUX ADMINS =====================
             $montant_fmt = number_format($montant, 0, ',', ' ');
             $emailBody = "
-                <p>Une depense a ete modifiee.</p>
+                <p>Une depense a ete modifiee par <strong>" . htmlspecialchars($auth_nom) . "</strong>.</p>
                 <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
                     <tr style='background:#f8f9fa;'>
                         <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>ID Depense</td>
@@ -517,7 +590,7 @@ try {
             $del_motif = $depenseInfo['motif_libelle'] ?? 'N/A';
 
             $emailBody = "
-                <p style='color:#dc3545;font-weight:bold;'>Une depense a ete supprimee.</p>
+                <p style='color:#dc3545;font-weight:bold;'>Une depense a ete supprimee par <strong>" . htmlspecialchars($auth_nom) . "</strong>.</p>
                 <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
                     <tr style='background:#f8f9fa;'>
                         <td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>ID Depense</td>
@@ -552,7 +625,6 @@ try {
         if ($action === 'add_pieces') {
             $id_depense = getInt($body['id_depense'] ?? null, null);
             $pieces = $body['pieces'] ?? [];
-            $user_id = getInt($body['user_id'] ?? null, null);
             if ($id_depense === null) jsonResponse(400, ['success' => false, 'error' => 'id_depense requis']);
             if (!is_array($pieces) || count($pieces) === 0) jsonResponse(200, ['success' => true, 'data' => []]);
 
@@ -566,6 +638,7 @@ try {
             $check = $db->query($checkSql, $checkParams);
             if (empty($check)) jsonResponse(404, ['success' => false, 'error' => 'Depense introuvable']);
 
+            $noms_pieces = [];
             foreach ($pieces as $p) {
                 $url = getStr($p['url'] ?? $p['url_fichier'] ?? '');
                 if ($url === '') continue;
@@ -574,14 +647,30 @@ try {
                 $sql = "INSERT INTO app_compta_depense_pieces
                             (id_depense, id_entreprise, url_fichier, nom_original, type_fichier, create_by, date_creation)
                         VALUES (?, ?, ?, ?, ?, ?, NOW())";
-                $db->query($sql, [$id_depense, $id_entreprise, $url, $nom_original, $type_fichier, $user_id]);
+                $db->query($sql, [$id_depense, $id_entreprise, $url, $nom_original, $type_fichier, $auth_user_id]);
+                if ($nom_original !== '') $noms_pieces[] = $nom_original;
             }
+
+            // Email notification
+            $liste_pieces = !empty($noms_pieces) ? implode(', ', array_map('htmlspecialchars', $noms_pieces)) : 'N/A';
+            $emailBody = "
+                <p>Des pieces justificatives ont ete ajoutees par <strong>" . htmlspecialchars($auth_nom) . "</strong>.</p>
+                <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
+                    <tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>ID Depense</td><td style='padding:10px;border:1px solid #dee2e6;'>{$id_depense}</td></tr>
+                    <tr><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Nombre de pieces</td><td style='padding:10px;border:1px solid #dee2e6;'>" . count($noms_pieces) . "</td></tr>
+                    <tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Fichiers</td><td style='padding:10px;border:1px solid #dee2e6;'>{$liste_pieces}</td></tr>
+                </table>";
+            sendComptaEmailToAdmins($db, $id_entreprise, 'Pieces justificatives ajoutees', $emailBody);
+
             jsonResponse(200, ['success' => true]);
         }
 
         if ($action === 'delete_piece') {
             $id_piece = getInt($body['id_piece'] ?? null, null);
             if ($id_piece === null) jsonResponse(400, ['success' => false, 'error' => 'id_piece requis']);
+
+            // Recuperer infos avant suppression pour l'email
+            $pieceInfo = $db->query("SELECT p.nom_original, p.id_depense FROM app_compta_depense_pieces p WHERE p.id_piece = ?", [$id_piece]);
 
             $sql = "DELETE p FROM app_compta_depense_pieces p
                     INNER JOIN app_compta_depenses d ON d.id_depense = p.id_depense
@@ -592,6 +681,19 @@ try {
                 $params[] = $id_entreprise;
             }
             $db->query($sql, $params);
+
+            // Email notification
+            if (!empty($pieceInfo)) {
+                $pi = $pieceInfo[0];
+                $emailBody = "
+                    <p style='color:#dc3545;font-weight:bold;'>Une piece justificative a ete supprimee par <strong>" . htmlspecialchars($auth_nom) . "</strong>.</p>
+                    <table style='width:100%;border-collapse:collapse;margin:15px 0;'>
+                        <tr style='background:#f8f9fa;'><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>Fichier supprime</td><td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($pi['nom_original'] ?? 'N/A') . "</td></tr>
+                        <tr><td style='padding:10px;font-weight:bold;border:1px solid #dee2e6;'>ID Depense</td><td style='padding:10px;border:1px solid #dee2e6;'>" . ($pi['id_depense'] ?? 'N/A') . "</td></tr>
+                    </table>";
+                sendComptaEmailToAdmins($db, $id_entreprise, 'Piece justificative supprimee', $emailBody);
+            }
+
             jsonResponse(200, ['success' => true]);
         }
 
@@ -640,7 +742,8 @@ try {
 
                 jsonResponse(200, ['success' => true, 'message' => 'Rapport envoye par email']);
             } catch (Exception $e) {
-                jsonResponse(500, ['success' => false, 'error' => 'Erreur envoi email', 'details' => $e->getMessage()]);
+                error_log("Erreur envoi rapport: " . $e->getMessage());
+                jsonResponse(500, ['success' => false, 'error' => 'Erreur envoi email']);
             }
         }
 
@@ -650,9 +753,9 @@ try {
     jsonResponse(405, ['success' => false, 'error' => 'Methode non autorisee']);
 
 } catch (Throwable $e) {
+    error_log("Erreur API compta depenses: " . $e->getMessage());
     jsonResponse(500, [
         'success' => false,
-        'error' => 'Erreur serveur',
-        'details' => $e->getMessage()
+        'error' => 'Erreur serveur'
     ]);
 }

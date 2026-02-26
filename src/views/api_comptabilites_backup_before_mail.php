@@ -129,6 +129,7 @@ try {
 
             $sql .= " ORDER BY d.date_depense DESC, d.id_depense DESC";
             $rows = $db->query($sql, $params);
+            if (!is_array($rows)) $rows = [];
             foreach ($rows as &$r) {
                 $r['montant'] = (float)($r['montant'] ?? 0);
                 $r['nb_pieces'] = (int)($r['nb_pieces'] ?? 0);

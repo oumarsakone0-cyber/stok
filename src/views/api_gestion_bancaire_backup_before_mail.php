@@ -102,6 +102,7 @@ try {
             $sql .= " GROUP BY c.id_compte
                       ORDER BY c.nom_compte ASC";
             $rows = $db->query($sql, $params);
+            if (!is_array($rows)) $rows = [];
             foreach ($rows as &$r) {
                 $r['solde_initial'] = (float)($r['solde_initial'] ?? 0);
                 $r['solde_actuel'] = (float)($r['solde_actuel'] ?? 0);
@@ -161,6 +162,7 @@ try {
             }
             $sql .= " ORDER BY t.date_transaction DESC, t.id_transaction DESC";
             $rows = $db->query($sql, $params);
+            if (!is_array($rows)) $rows = [];
             foreach ($rows as &$r) {
                 $r['montant'] = (float)($r['montant'] ?? 0);
             }
