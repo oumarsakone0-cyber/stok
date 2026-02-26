@@ -584,7 +584,7 @@ const loadClient = async () => {
 const loadStats = async () => {
   if (!clientId.value) return
   try {
-    const { data } = await apiGet('api_clients.php?action=stats_client', { params: { id: clientId.value } })
+    const { data } = await apiGet('api_clients.php?action=stats_client&id=' + clientId.value)
     if (data.success) {
       stats.value = data.data
     }
@@ -596,7 +596,7 @@ const loadStats = async () => {
 const loadCredits = async () => {
   if (!clientId.value) return
   try {
-    const { data } = await apiGet('api_clients.php?action=list_credits', { params: { client_id: clientId.value } })
+    const { data } = await apiGet('api_clients.php?action=list_credits&client_id=' + clientId.value)
     if (data.success) {
       credits.value = data.data
     }
@@ -608,7 +608,7 @@ const loadPaiements = async () => {
   try {
     paiements.value = []
     for (const credit of credits.value) {
-      const { data } = await apiGet('api_clients.php?action=historique_paiements', { params: { credit_id: credit.id } })
+      const { data } = await apiGet('api_clients.php?action=historique_paiements&credit_id=' + credit.id)
       if (data.success) {
         paiements.value.push(...data.data)
       }

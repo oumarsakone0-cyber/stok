@@ -1,3 +1,4 @@
+
 <template>
   <SidebarLayout currentPage="clients">
     <!-- Loading State -->
@@ -469,6 +470,14 @@ const formClient = ref({
   notes: ''
 })
 
+// Nettoyage des champs indésirables dans la réponse API
+const cleanClientsData = (data) => {
+  return data.map(client => {
+    const { user_id, role, _rand, ...rest } = client
+    return rest
+  })
+}
+
 // Computed
 const filteredClients = computed(() => {
   let result = [...clients.value]
@@ -532,12 +541,10 @@ const loadClients = async () => {
     apiRawResponse.value = JSON.stringify(response.data, null, 2);
     console.log('Réponse API getClients:', response.data);
     if (response.data.success) {
-      // Harmoniser les champs pour chaque client
-      clients.value = response.data.data.map(client => ({
+      // Nettoyage des champs indésirables et harmonisation
+      clients.value = cleanClientsData(response.data.data).map(client => ({
         ...client,
-        // Correction : utiliser total_dette partout
         total_dette: client.total_dette !== undefined ? client.total_dette : (client.total_achats || 0),
-        // Correction : id_client pour cohérence
         id_client: client.id_client !== undefined ? client.id_client : client.id,
       }));
     }
@@ -552,12 +559,7 @@ const loadClients = async () => {
 
 const loadStatsGlobal = async () => {
   try {
-    const params = {
-      user_id: authStore.user?.id,
-      role: authStore.isAdmin ? 'admin' : 'user',
-      _rand: `${Date.now()}_${Math.random().toString(36).slice(2)}`
-    }
-    const response = await getStatsGlobal(params)
+    const response = await getStatsGlobal()
     if (response.data.success) {
       statsGlobal.value = response.data.data.statistiques
     }
@@ -568,12 +570,7 @@ const loadStatsGlobal = async () => {
 
 const loadCreditsData = async () => {
   try {
-    const params = {
-      user_id: authStore.user?.id,
-      role: authStore.isAdmin ? 'admin' : 'user',
-      _rand: `${Date.now()}_${Math.random().toString(36).slice(2)}`
-    }
-    const response = await getCreditsData(params)
+    const response = await getCreditsData()
     if (response.data.success) {
       creditsData.value = response.data.data
     }

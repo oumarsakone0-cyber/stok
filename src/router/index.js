@@ -72,7 +72,7 @@ const routes = [
   {
     path: "/entrepots",
     name: "entrepots",
-    component: () => import("../views/entrepots/Entrepots_list.vue"),
+    component: () => import("../views/app_entrepots/Entrepots_list.vue"),
     meta: { 
       requiresAuth: true,
       requiresAccess: 'entrepots'
@@ -81,7 +81,7 @@ const routes = [
   {
     path: "/entrepots/:id",
     name: "entrepots-detail",
-    component: () => import("../views/entrepots/Entrepots_detail.vue"),
+    component: () => import("../views/app_entrepots/Entrepots_detail.vue"),
     meta: { 
       requiresAuth: true,
       requiresAccess: 'entrepot',
@@ -110,7 +110,7 @@ const routes = [
   {
     path: "/fournisseurs",
     name: "fournisseurs",
-    component: () => import("../views/fournisseurs/fournisseurs_list.vue"),
+    component: () => import("../views/app_fournisseurs/fournisseurs_list.vue"),
     meta: { 
       requiresAuth: true,
       requiresAccess: 'fournisseurs'
@@ -119,7 +119,7 @@ const routes = [
   {
     path: "/fournisseurs/:id",
     name: "fournisseurs-detail",
-    component: () => import("../views/fournisseurs/fournisseur_detail.vue"),
+    component: () => import("../views/app_fournisseurs/fournisseur_detail.vue"),
     meta: { 
       requiresAuth: true,
       requiresAccess: 'fournisseurs'
