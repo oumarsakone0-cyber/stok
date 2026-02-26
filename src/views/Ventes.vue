@@ -152,7 +152,7 @@
     <div v-if="!loading && !error && filteredPdv.length > 0" :style="gridStyle">
       <div
         v-for="(pdv, index) in filteredPdv"
-        :key="pdv.id"
+        :key="pdv.id_pdv"
         :style="getCardStyle(index)"
         @click="goToDetails(pdv)"
         @mouseenter="hoveredCard = index"
@@ -182,7 +182,7 @@
                 <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
               </svg>
             </button>
-            <button :style="getActionBtnStyle('delete', index)" @click.stop="deletePdv(pdv.id)" @mouseenter="hoveredAction='delete-'+index" @mouseleave="hoveredAction=null" title="Supprimer">
+            <button :style="getActionBtnStyle('delete', index)" @click.stop="deletePdv(pdv.id_pdv)" @mouseenter="hoveredAction='delete-'+index" @mouseleave="hoveredAction=null" title="Supprimer">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6"/>
                 <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -466,10 +466,12 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { usePdvSelectionStore } from '../stores/pdvSelectionStore'
 import { useRouter } from 'vue-router'
 import SidebarLayout from './SidebarLayout.vue'
-// import { getPdvList, addPdv, updatePdv, deletePdv as apiDeletePdv, togglePdvStatut, cloturerJourneePdv } from '../services/api'
+import { getPointsVente, addPointVente, updatePointVente, deletePointVente } from '../services/api'
 const router = useRouter()
+const pdvSelectionStore = usePdvSelectionStore()
 // ─── Constantes ─────────────────────────────────────────────────────
 const STATUS_FILTERS = [
   { key: 'all',    label: 'Tous' },
@@ -559,18 +561,8 @@ const loadPdv = async () => {
   loading.value = true
   error.value = null
   try {
-    // const res = await getPdvList()
-    // pdvList.value = res.data.data
-
-    // --- DONNÉES DEMO ---
-    pdvList.value = [
-      { id:1, nom:'Boutique Plateau', ville:'Abidjan', quartier:'Plateau', responsable:'Kouamé Jean', contact:'+225 07 12 34 56', statut:'actif', type_pdv:'boutique', vente_jour:485000, vente_hier:620000, a_encaisser:0, date_create:'2024-01-15', derniere_cloture:'2025-02-23T18:30:00' },
-      { id:2, nom:'Kiosque Yopougon', ville:'Abidjan', quartier:'Yopougon', responsable:'Traoré Fatoumata', contact:'+225 05 78 90 12', statut:'actif', type_pdv:'kiosque', vente_jour:132000, vente_hier:178000, a_encaisser:178000, date_create:'2024-03-01' },
-      { id:3, nom:'Dépôt Cocody', ville:'Abidjan', quartier:'Cocody', responsable:'N\'Guessan Paul', contact:'+225 01 23 45 67', statut:'actif', type_pdv:'depot', vente_jour:890000, vente_hier:745000, a_encaisser:0, date_create:'2023-11-20', derniere_cloture:'2025-02-23T17:00:00' },
-      { id:4, nom:'Boutique Bouaké Centre', ville:'Bouaké', quartier:'Centre', responsable:'Coulibaly Mariam', contact:'+225 09 11 22 33', statut:'actif', type_pdv:'boutique', vente_jour:220000, vente_hier:195000, a_encaisser:195000, date_create:'2024-06-10' },
-      { id:5, nom:'Mobile Adjamé', ville:'Abidjan', quartier:'Adjamé', responsable:'Diabaté Ibrahim', contact:'+225 07 55 66 77', statut:'inactif', type_pdv:'mobile', vente_jour:0, vente_hier:88000, a_encaisser:88000, date_create:'2024-02-28' },
-      { id:6, nom:'Boutique San-Pédro', ville:'San-Pédro', quartier:'Port', responsable:'Koné Aminata', contact:'+225 05 99 88 77', statut:'actif', type_pdv:'boutique', vente_jour:340000, vente_hier:410000, a_encaisser:0, date_create:'2024-08-05', derniere_cloture:'2025-02-23T19:00:00' },
-    ]
+    const res = await getPointsVente()
+    pdvList.value = Array.isArray(res.data.data) ? res.data.data : []
   } catch(e) {
     error.value = e.response?.data?.error || 'Impossible de charger les points de vente'
   } finally {
@@ -581,14 +573,18 @@ const loadPdv = async () => {
 const savePdv = async () => {
   saving.value = true
   try {
-    // const payload = { ...form }
-    // let res
-    // if (editingPdv.value) { payload.id = editingPdv.value.id; res = await updatePdv(payload) }
-    // else res = await addPdv(payload)
-    // if (res.data.success) { await loadPdv(); closeModal() }
-
-    await loadPdv()
-    closeModal()
+    const payload = { ...form }
+    let res
+    if (editingPdv.value && editingPdv.value.id_pdv) {
+      payload.id_pdv = editingPdv.value.id_pdv
+      res = await updatePointVente(payload)
+    } else {
+      res = await addPointVente(payload)
+    }
+    if (res.data.success) {
+      await loadPdv();
+      closeModal()
+    }
   } catch(e) {
     alert('Erreur serveur')
   } finally {
@@ -596,16 +592,19 @@ const savePdv = async () => {
   }
 }
 
-const deletePdv = async (id) => {
+const deletePdv = async (id_pdv) => {
   if (!confirm('Supprimer ce point de vente ?')) return
   try {
-    // await apiDeletePdv(id)
-    pdvList.value = pdvList.value.filter(p => p.id !== id)
+    const res = await deletePointVente(id_pdv)
+    if (res.data.success) {
+      await loadPdv()
+    }
   } catch(e) { alert('Erreur lors de la suppression') }
 }
 
 const goToDetails = (pdv) => {
-  router.push({ name: 'points_de_vente_details', params: { id: pdv.id } })
+  pdvSelectionStore.setSelectedPdvId(pdv.id_pdv)
+  router.push({ name: 'points_de_vente_details' })
 }
 
 const toggleStatut = async (id) => {

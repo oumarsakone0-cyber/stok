@@ -1,3 +1,4 @@
+
 <template>
   <div>
     <!-- Loading -->
@@ -277,13 +278,14 @@ const exporting = ref(false)
 const dashboard = ref(null)
 const exportHovered = ref(false)
 
+
 const loadDashboard = async () => {
   loading.value = true
   try {
     const response = await fetch(`${props.apiBaseUrl}/api_clients.php?action=rapport_global`)
     const data = await response.json()
     if (data.success) {
-      dashboard.value = data.data
+      dashboard.value = cleanDashboardData(data.data)
     }
   } catch (error) {
     console.error('Erreur:', error)

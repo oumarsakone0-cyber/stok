@@ -1,3 +1,28 @@
+// ==================== POINTS DE VENTE ====================
+// Liste des points de vente
+export const getPointsVente = () => {
+  return api.get('api_points_vente.php?action=list');
+};
+
+// Détail d'un point de vente
+export const getPointVente = (id_pdv) => {
+  return api.get('api_points_vente.php?action=get', { params: { id_pdv } });
+};
+
+// Ajouter un point de vente
+export const addPointVente = (payload) => {
+  return api.post('api_points_vente.php?action=add', payload);
+};
+
+// Modifier un point de vente
+export const updatePointVente = (payload) => {
+  return api.post('api_points_vente.php?action=update', payload);
+};
+
+// Supprimer un point de vente
+export const deletePointVente = (id_pdv) => {
+  return api.post('api_points_vente.php?action=delete', { id_pdv });
+};
 // Statistiques globales clients
 export const getStatsGlobal = (params = {}) => {
   return api.get('api_clients.php?action=rapport_global', { params });

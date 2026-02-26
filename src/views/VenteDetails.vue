@@ -434,7 +434,10 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { usePdvSelectionStore } from '../stores/pdvSelectionStore'
+import { useRoute } from 'vue-router'
 import SidebarLayout from './SidebarLayout.vue'
+import { getPointVente, updatePointVente, deletePointVente } from '../services/api'
 
 // ─── Constantes
 const PERIODES=[{key:'today',label:"Aujourd'hui"},{key:'week',label:'7 jours'},{key:'month',label:'Ce mois'},{key:'all',label:'Tout'}]
@@ -443,8 +446,8 @@ const REGLEMENTS=[{key:'total',label:'Paiement Total',icon:'✅'},{key:'partiel'
 const PAIEMENTS_MODES=[{key:'especes',label:'Espèces',icon:'💵'},{key:'mobile_money',label:'Mobile Money',icon:'📱'},{key:'carte',label:'Carte',icon:'💳'}]
 const MOBILE_MONEY_OPS=[{key:'wave',label:'Wave',emoji:'🔵'},{key:'orange',label:'Orange Money',emoji:'🟠'},{key:'mtn',label:'MTN Money',emoji:'🟡'},{key:'moov',label:'Moov Money',emoji:'🟢'},{key:'autre',label:'Autre',emoji:'📲'}]
 
-// ─── Données demo
-const pdv=reactive({id:1,nom:'Boutique Plateau',ville:'Abidjan',quartier:'Plateau',responsable:'Kouamé Jean',contact:'+225 07 12 34 56',statut:'actif',type_pdv:'Boutique',vente_jour:485000,vente_hier:620000,a_encaisser:0})
+// ─── Données PDV (chargées via API)
+const pdv = reactive({})
 const clients=ref([{id:1,nom:'Koné Mariam',contact:'+225 07 11 22 33'},{id:2,nom:'Diabaté Ibrahim',contact:'+225 05 44 55 66'},{id:3,nom:'Touré Aminata',contact:'+225 01 77 88 99'},{id:4,nom:'Ouédraogo Pierre',contact:'+225 09 22 33 44'}])
 const produits=ref([
   {id:1,nom:'Riz Parfumé 5kg',prix:5500,prix_achat:4800,stock:42,categorie:'Alimentation',emoji:'🌾'},
@@ -473,6 +476,51 @@ const ventes=ref([
 ])
 
 // ─── State
+// Charger le détail du point de vente depuis l’API
+const pdvSelectionStore = usePdvSelectionStore()
+const id_pdv = pdvSelectionStore.selectedPdvId
+const loading = ref(false)
+const error = ref(null)
+
+const loadPdv = async () => {
+  if (!id_pdv) return
+  loading.value = true
+  error.value = null
+  try {
+    const res = await getPointVente(id_pdv)
+    if (res.data && res.data.data) Object.assign(pdv, res.data.data)
+  } catch (e) {
+    error.value = e.response?.data?.error || 'Erreur lors du chargement du point de vente'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadPdv)
+// Fonction pour mettre à jour le point de vente
+const savePdv = async (payload) => {
+  try {
+    payload.id_pdv = pdv.id_pdv
+    const res = await updatePointVente(payload)
+    if (res.data.success) await loadPdv()
+  } catch (e) {
+    alert('Erreur lors de la mise à jour')
+  }
+}
+
+// Fonction pour supprimer le point de vente
+const removePdv = async () => {
+  if (!confirm('Supprimer ce point de vente ?')) return
+  try {
+    const res = await deletePointVente(pdv.id_pdv)
+    if (res.data.success) {
+      // Rediriger vers la liste après suppression
+      window.location.href = '/ventes'
+    }
+  } catch (e) {
+    alert('Erreur lors de la suppression')
+  }
+}
 const saving=ref(false);const caisseSaving=ref(false)
 const hovMV=ref(false);const hovC=ref(false);const hovRow=ref(null);const hovProd=ref(null)
 const showVenteModal=ref(false);const showCaisseMode=ref(false);const showToast=ref(false)
@@ -518,7 +566,7 @@ const statsData=computed(()=>[
 const isToday=d=>{const t=new Date(d),n=new Date();return t.toDateString()===n.toDateString()}
 const isYesterday=d=>{const t=new Date(d),n=new Date();n.setDate(n.getDate()-1);return t.toDateString()===n.toDateString()}
 const isSameMonth=d=>{const t=new Date(d),n=new Date();return t.getMonth()===n.getMonth()&&t.getFullYear()===n.getFullYear()}
-const getInitials=n=>n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)
+const getInitials=n=>(typeof n === 'string' && n.trim()) ? n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : ''
 const formatAmount=n=>new Intl.NumberFormat('fr-FR').format(n)+' FCFA'
 const formatDateToday=()=>new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})
 const formatDateShort=d=>new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})
